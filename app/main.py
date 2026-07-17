@@ -12,11 +12,11 @@ sys.path.insert(0, str(PROJECT_ROOT))
 def run_single_analysis(model, output_dir: Path) -> dict:
     """
     Executa uma análise individual:
-    - valida modelo
-    - resolve
-    - pós-processa
-    - salva JSON
-    - gera diagramas
+    - valida modelo;
+    - resolve;
+    - pós-processa;
+    - salva JSON;
+    - gera diagramas.
     """
 
     from core.validation import validate_model
@@ -25,16 +25,22 @@ def run_single_analysis(model, output_dir: Path) -> dict:
     from io_module.results_writer import write_results_json
     from plots.diagrams import generate_all_diagrams
 
-    validate_model(model)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
+    print("[3/5] Validando e resolvendo modelo estrutural...")
+
+    validate_model(model)
     results = solve_structure(model)
 
     results = enrich_results(model, results)
     print_analysis_summary(results)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
+    print("[4/5] Salvando resultados...")
 
     write_results_json(results, output_dir / "resultados.json")
+
+    print("[5/5] Gerando resultados gráficos...")
+
     generate_all_diagrams(model, results, output_dir)
 
     return results
@@ -44,8 +50,8 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
     """
     Executa a análise estrutural a partir de um arquivo JSON.
 
-    Agora suporta:
-    - modelo antigo com nodal_loads/distributed_loads;
+    Suporta:
+    - modelo simples com nodal_loads/distributed_loads;
     - load_cases;
     - combinations.
     """
@@ -122,20 +128,18 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
             case_model = build_model_for_load_case(model, load_case.name)
             case_output_dir = output_dir / load_case.name
 
-            print("[3/5] Resolvendo modelo estrutural...")
             run_single_analysis(case_model, case_output_dir)
 
+            print()
             print(f"Resultados do caso salvos em: {case_output_dir}")
             print()
 
     else:
         print("Modelo sem load_cases/combinations. Rodando análise única.")
-        print("[3/5] Resolvendo modelo estrutural...")
+        print()
 
         run_single_analysis(model, output_dir)
 
-    print("[4/5] Salvando resultados...")
-    print("[5/5] Gerando resultados gráficos...")
     print()
     print("Análise concluída com sucesso!")
     print(f"Resultados salvos em: {output_dir}")
