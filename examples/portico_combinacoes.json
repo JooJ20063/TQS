@@ -1,0 +1,275 @@
+{
+  "name": "portico_combinacoes",
+  "self_weight": {
+    "enabled": true,
+    "gamma_default": 25.0,
+    "load_case": "PP"
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "id": 2,
+      "x": 4.0,
+      "y": 0.0
+    },
+    {
+      "id": 3,
+      "x": 8.0,
+      "y": 0.0
+    },
+    {
+      "id": 4,
+      "x": 0.0,
+      "y": 3.0
+    },
+    {
+      "id": 5,
+      "x": 4.0,
+      "y": 3.0
+    },
+    {
+      "id": 6,
+      "x": 8.0,
+      "y": 3.0
+    },
+    {
+      "id": 7,
+      "x": 0.0,
+      "y": 6.0
+    },
+    {
+      "id": 8,
+      "x": 4.0,
+      "y": 6.0
+    },
+    {
+      "id": 9,
+      "x": 8.0,
+      "y": 6.0
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "concreto_C25",
+      "E": 25000000.0,
+      "gamma": 25.0
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "viga_20x50",
+      "type": "rectangular",
+      "b": 0.2,
+      "h": 0.5
+    },
+    {
+      "id": 2,
+      "name": "pilar_30x30",
+      "type": "rectangular",
+      "b": 0.3,
+      "h": 0.3
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "node_i": 1,
+      "node_j": 4,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 2,
+      "node_i": 4,
+      "node_j": 7,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 3,
+      "node_i": 2,
+      "node_j": 5,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 4,
+      "node_i": 5,
+      "node_j": 8,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 5,
+      "node_i": 3,
+      "node_j": 6,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 6,
+      "node_i": 6,
+      "node_j": 9,
+      "material": 1,
+      "section": 2,
+      "kind": "frame2d"
+    },
+    {
+      "id": 7,
+      "node_i": 4,
+      "node_j": 5,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    },
+    {
+      "id": 8,
+      "node_i": 5,
+      "node_j": 6,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    },
+    {
+      "id": 9,
+      "node_i": 7,
+      "node_j": 8,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    },
+    {
+      "id": 10,
+      "node_i": 8,
+      "node_j": 9,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    }
+  ],
+  "supports": [
+    {
+      "node": 1,
+      "ux": true,
+      "uy": true,
+      "rz": true
+    },
+    {
+      "node": 2,
+      "ux": true,
+      "uy": true,
+      "rz": true
+    },
+    {
+      "node": 3,
+      "ux": true,
+      "uy": true,
+      "rz": true
+    }
+  ],
+  "load_cases": [
+    {
+      "name": "SC",
+      "type": "variable",
+      "distributed_loads": [
+        {
+          "element": 7,
+          "qx": 0.0,
+          "qy": -20.0
+        },
+        {
+          "element": 8,
+          "qx": 0.0,
+          "qy": -20.0
+        },
+        {
+          "element": 9,
+          "qx": 0.0,
+          "qy": -15.0
+        },
+        {
+          "element": 10,
+          "qx": 0.0,
+          "qy": -15.0
+        }
+      ]
+    },
+    {
+      "name": "VENTO_X",
+      "type": "wind",
+      "nodal_loads": [
+        {
+          "node": 4,
+          "fx": 5.0,
+          "fy": 0.0,
+          "mz": 0.0
+        },
+        {
+          "node": 5,
+          "fx": 5.0,
+          "fy": 0.0,
+          "mz": 0.0
+        },
+        {
+          "node": 6,
+          "fx": 5.0,
+          "fy": 0.0,
+          "mz": 0.0
+        },
+        {
+          "node": 7,
+          "fx": 10.0,
+          "fy": 0.0,
+          "mz": 0.0
+        },
+        {
+          "node": 8,
+          "fx": 10.0,
+          "fy": 0.0,
+          "mz": 0.0
+        },
+        {
+          "node": 9,
+          "fx": 10.0,
+          "fy": 0.0,
+          "mz": 0.0
+        }
+      ]
+    }
+  ],
+  "combinations": [
+    {
+      "name": "ELS_01",
+      "factors": {
+        "PP": 1.0,
+        "SC": 1.0
+      }
+    },
+    {
+      "name": "ELU_01",
+      "factors": {
+        "PP": 1.4,
+        "SC": 1.4
+      }
+    },
+    {
+      "name": "ELU_02",
+      "factors": {
+        "PP": 1.3,
+        "SC": 1.0,
+        "VENTO_X": 1.4
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "name": "viga_carga_central",
+  "nodes": [
+    {
+      "id": 1,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 2,
+      "x": 2.5,
+      "y": 0
+    },
+    {
+      "id": 3,
+      "x": 5,
+      "y": 0
+    }
+  ],
+  "materials": [
+    {
+      "id": 1,
+      "name": "concreto_C25",
+      "E": 25000000.0,
+      "gamma": 25.0
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "name": "retangular_20x50",
+      "type": "rectangular",
+      "b": 0.2,
+      "h": 0.5
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "node_i": 1,
+      "node_j": 2,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    },
+    {
+      "id": 2,
+      "node_i": 2,
+      "node_j": 3,
+      "material": 1,
+      "section": 1,
+      "kind": "frame2d"
+    }
+  ],
+  "supports": [
+    {
+      "node": 1,
+      "ux": true,
+      "uy": true,
+      "rz": false
+    },
+    {
+      "node": 3,
+      "ux": false,
+      "uy": true,
+      "rz": false
+    }
+  ],
+  "nodal_loads": [
+    {
+      "node": 2,
+      "fx": 0,
+      "fy": -10,
+      "mz": 0
+    }
+  ]
+}
