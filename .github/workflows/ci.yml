@@ -101,3 +101,10 @@ jobs:
           test -f results/ci_portico_combinacoes/ELU_02/deformada.png
           test -f results/ci_portico_combinacoes/ELU_02/cortante.png
           test -f results/ci_portico_combinacoes/ELU_02/momento_fletor.png
+
+          test -f results/ci_portico_combinacoes/envoltoria.json
+          test -f results/ci_portico_combinacoes/resumo_envoltoria.txt
+          test -f results/ci_portico_combinacoes/envoltoria_elementos.csv
+          test -f results/ci_portico_combinacoes/dimensionamento_vigas.csv
+          test -f results/ci_portico_combinacoes/resumo_dimensionamento_vigas.txt
+          test -f results/ci_portico_combinacoes/resumo_normativo.txt
