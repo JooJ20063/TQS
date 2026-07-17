@@ -109,18 +109,22 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
 
         from core.envelope import create_element_force_envelope
         from core.envelope_report import write_envelope_summary_txt
+        from core.envelope_csv import write_envelope_csv
         from io_module.results_writer import write_results_json
 
         envelope = create_element_force_envelope(combination_results)
 
         envelope_json_path = output_dir / "envoltoria.json"
         envelope_summary_path = output_dir / "resumo_envoltoria.txt"
+        envelope_csv_path = output_dir / "envoltoria_elementos.csv"
 
         write_results_json(envelope, envelope_json_path)
         write_envelope_summary_txt(envelope, envelope_summary_path)
+        write_envelope_csv(envelope, envelope_csv_path)
 
         print(f"Envoltória salva em: {envelope_json_path}")
-        print(f"Resumo da envoltória salvo em: {envelope_summary_path}")
+        print(f"Resumo da envoltória salvo em:          {envelope_summary_path}")
+        print(f"CSV da envoltória salvo em: {envelope_csv_path}")
         print()
 
     elif has_load_cases(model):
