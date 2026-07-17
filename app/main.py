@@ -110,6 +110,7 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
         from core.envelope import create_element_force_envelope
         from core.envelope_report import write_envelope_summary_txt
         from core.envelope_csv import write_envelope_csv
+        from core.beam_design import design_beams_from_envelope
         from io_module.results_writer import write_results_json
 
         envelope = create_element_force_envelope(combination_results)
@@ -118,13 +119,25 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
         envelope_summary_path = output_dir / "resumo_envoltoria.txt"
         envelope_csv_path = output_dir / "envoltoria_elementos.csv"
 
+        beam_design_csv_path = output_dir / "dimensionamento_vigas.csv"
+        beam_design_summary_path = output_dir / "resumo_dimensionamento_vigas.txt"
+
         write_results_json(envelope, envelope_json_path)
         write_envelope_summary_txt(envelope, envelope_summary_path)
         write_envelope_csv(envelope, envelope_csv_path)
 
+        design_beams_from_envelope(
+            model=model,
+            envelope=envelope,
+            csv_path=beam_design_csv_path,
+            txt_path=beam_design_summary_path,
+        )
+
         print(f"Envoltória salva em: {envelope_json_path}")
-        print(f"Resumo da envoltória salvo em:          {envelope_summary_path}")
+        print(f"Resumo da envoltória salvo em: {envelope_summary_path}")
         print(f"CSV da envoltória salvo em: {envelope_csv_path}")
+        print(f"Dimensionamento preliminar de vigas salvo em: {beam_design_csv_path}")
+        print(f"Resumo do dimensionamento de vigas salvo em: {beam_design_summary_path}")
         print()
 
     elif has_load_cases(model):
