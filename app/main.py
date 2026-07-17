@@ -71,7 +71,16 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
     print("[1/5] Lendo modelo estrutural...")
 
     from io_module.json_reader import read_model_from_json
+    from core.normative_report import write_normative_summary_txt
+
     model = read_model_from_json(input_file)
+
+    normative_summary_path = output_dir / "resumo_normativo.txt"
+    write_normative_summary_txt(model, normative_summary_path)
+
+    print(f"Resumo normativo salvo em: {normative_summary_path}")
+    print()
+
 
     print("[2/5] Preparando análises...")
 
