@@ -16,10 +16,13 @@ CSV_COLUMNS = [
     "momento_abs_kNm",
     "caso_momento",
     "posicao_armadura",
-    "as_necessario_cm2",
+        "as_calculado_cm2",
+    "as_minimo_cm2",
+    "as_maximo_cm2",
+    "as_adotado_cm2",
+    "status",
     "observacao",
-]
-
+    ]
 
 def design_beams_from_envelope(
     model,
@@ -135,7 +138,11 @@ def create_beam_design_rows(
             fyk_mpa=fyk_mpa,
         )
 
-        as_required_cm2 = flexure_result["results"]["as_required_cm2"]
+        as_calc_cm2 = flexure_result["results"]["as_calc_cm2"]
+        as_min_cm2 = flexure_result["results"]["as_min_cm2"]
+        as_max_cm2 = flexure_result["results"]["as_max_cm2"]
+        as_adopted_cm2 = flexure_result["results"]["as_adopted_cm2"]
+
         reinforcement_position = flexure_result["results"]["reinforcement_position"]
         status = flexure_result["status"]
 
@@ -152,11 +159,15 @@ def create_beam_design_rows(
                 "momento_abs_kNm": format_number(moment_abs),
                 "caso_momento": moment_case,
                 "posicao_armadura": reinforcement_position,
-                "as_necessario_cm2": format_number(as_required_cm2),
+                "as_calculado_cm2": format_number(as_calc_cm2),
+                "as_minimo_cm2": format_number(as_min_cm2),
+                "as_maximo_cm2": format_number(as_max_cm2),
+                "as_adotado_cm2": format_number(as_adopted_cm2),
+                "status": status,
                 "observacao": (
-                    f"Status: {status}. "
                     f"Armadura {reinforcement_position}. "
-                    "Cálculo preliminar rastreável; verificações normativas completas ainda não implementadas."
+                    "Cálculo preliminar com limites parametrizados; "
+                    "verificações normativas completas ainda não implementadas."
                 ),
             }
         )
@@ -242,7 +253,11 @@ def create_unavailable_row(element_envelope, observation):
         "momento_abs_kNm": "",
         "caso_momento": "",
         "posicao_armadura": "",
-        "as_necessario_cm2": "",
+        "as_calculado_cm2": "",
+        "as_minimo_cm2": "",
+        "as_maximo_cm2": "",
+        "as_adotado_cm2": "",
+        "status": "not_available",
         "observacao": observation,
     }
 
@@ -295,8 +310,6 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
     lines.append("  Ainda não substitui dimensionamento normativo completo.")
     lines.append("")
     lines.append("Verificações ainda não implementadas:")
-    lines.append("  - armadura mínima")
-    lines.append("  - armadura máxima")
     lines.append("  - linha neutra")
     lines.append("  - domínio de deformação")
     lines.append("  - ductilidade")
@@ -319,7 +332,7 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
                 f"| L = {row['comprimento_m']} m"
             )
 
-            if not row["as_necessario_cm2"]:
+            if not row["as_adotado_cm2"]:
                 lines.append(f"  Observação: {row['observacao']}")
                 continue
 
@@ -334,7 +347,19 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
                 f"  Posição da armadura = {row['posicao_armadura']}"
             )
             lines.append(
-                f"  As estimado = {row['as_necessario_cm2']} cm²"
+                f"  As calculado = {row['as_calculado_cm2']} cm²"
+            )
+            lines.append(
+                f"  As mínimo = {row['as_minimo_cm2']} cm²"
+            )
+            lines.append(
+                f"  As máximo = {row['as_maximo_cm2']} cm²"
+            )
+            lines.append(
+                f"  As adotado = {row['as_adotado_cm2']} cm²"
+            )
+            lines.append(
+                f"  Status = {row['status']}"
             )
             lines.append(
                 f"  Observação: {row['observacao']}"

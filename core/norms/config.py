@@ -30,6 +30,8 @@ class DesignCodeConfig:
 
     alpha_cc: float = 0.85
 
+    rho_min_beam_flexure: float = 0.0015
+    rho_max_beam_flexure: float = 0.04
 
 def default_abnt_config() -> DesignCodeConfig:
     """
