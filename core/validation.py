@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from core.model import StructuralModel
 
+ALLOWED_LOAD_CASE_TYPES = {
+    "generic",
+    "permanent",
+    "variable",
+    "wind",
+    "accidental",
+}
 
 def validate_model(model: StructuralModel) -> None:
     """
@@ -21,6 +28,7 @@ def validate_model(model: StructuralModel) -> None:
     validate_supports(model)
     validate_loads(model)
     validate_load_cases_and_combinations(model)
+    validate_normative_metadata(model)
 
 
 # ==========================================================
@@ -266,3 +274,15 @@ def validate_load_cases_and_combinations(model: StructuralModel) -> None:
                     f"Combinação {combination.name} usa o caso '{load_case_name}', "
                     "mas esse caso não existe."
                 )
+
+def validate_normative_metadata(model: StructuralModel) -> None:
+    for load_case in model.load_cases:
+        load_case_type = str(load_case.type).lower()
+
+        if load_case_type not in ALLOWED_LOAD_CASE_TYPES:
+            allowed = ", ".join(sorted(ALLOWED_LOAD_CASE_TYPES))
+
+            raise ValueError(
+                f"Caso de carregamento '{load_case.name}' possui type='{load_case.type}', "
+                f"mas os tipos aceitos são: {allowed}."
+            )

@@ -5,6 +5,19 @@
     "gamma_default": 25.0,
     "load_case": "PP"
   },
+
+  "design_code": {
+    "concrete_code": "ABNT NBR 6118",
+    "concrete_code_version": "verificar edição vigente",
+    "actions_code": "ABNT NBR 6120",
+    "actions_code_version": "verificar edição vigente",
+    "combinations_code": "ABNT NBR 8681",
+    "combinations_code_version": "verificar edição vigente",
+    "wind_code": "ABNT NBR 6123",
+    "wind_code_version": "verificar edição vigente",
+    "mode": "academic"
+    },
+
   "nodes": [
     {
       "id": 1,

@@ -30,6 +30,7 @@ def build_model_for_load_case(
 
     return StructuralModel(
         name=f"{base_model.name}_{load_case.name}",
+        design_code=dict(base_model.design_code),
         nodes=base_model.nodes,
         materials=base_model.materials,
         sections=base_model.sections,
@@ -69,6 +70,7 @@ def build_model_for_combination(
 
     return StructuralModel(
         name=f"{base_model.name}_{combination.name}",
+        design_code=dict(base_model.design_code),
         nodes=base_model.nodes,
         materials=base_model.materials,
         sections=base_model.sections,
