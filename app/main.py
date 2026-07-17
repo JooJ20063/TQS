@@ -9,7 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
-def run_single_analysis(model, output_dir: Path) -> None:
+def run_single_analysis(model, output_dir: Path) -> dict:
     """
     Executa uma análise individual:
     - valida modelo;
@@ -42,6 +42,8 @@ def run_single_analysis(model, output_dir: Path) -> None:
     print("[5/5] Gerando resultados gráficos...")
 
     generate_all_diagrams(model, results, output_dir)
+
+    return results
 
 
 def run_analysis(input_file: Path, output_dir: Path) -> None:
@@ -84,6 +86,8 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
         print(f"Foram encontradas {len(model.combinations)} combinações.")
         print()
 
+        combination_results = {}
+
         for combination in model.combinations:
             print("=" * 60)
             print(f"Analisando combinação: {combination.name}")
@@ -92,11 +96,25 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
             combined_model = build_model_for_combination(model, combination)
             combination_output_dir = output_dir / combination.name
 
-            run_single_analysis(combined_model, combination_output_dir)
+            results = run_single_analysis(combined_model, combination_output_dir)
+            combination_results[combination.name] = results
 
             print()
             print(f"Resultados da combinação salvos em: {combination_output_dir}")
             print()
+
+        print("=" * 60)
+        print("Gerando envoltória de esforços")
+        print("=" * 60)
+
+        from core.envelope import create_element_force_envelope
+        from io_module.results_writer import write_results_json
+
+        envelope = create_element_force_envelope(combination_results)
+        write_results_json(envelope, output_dir / "envoltoria.json")
+
+        print(f"Envoltória salva em: {output_dir / 'envoltoria.json'}")
+        print()
 
     elif has_load_cases(model):
         print(f"Foram encontrados {len(model.load_cases)} casos de carregamento.")
