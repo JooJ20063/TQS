@@ -108,12 +108,19 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
         print("=" * 60)
 
         from core.envelope import create_element_force_envelope
+        from core.envelope_report import write_envelope_summary_txt
         from io_module.results_writer import write_results_json
 
         envelope = create_element_force_envelope(combination_results)
-        write_results_json(envelope, output_dir / "envoltoria.json")
 
-        print(f"Envoltória salva em: {output_dir / 'envoltoria.json'}")
+        envelope_json_path = output_dir / "envoltoria.json"
+        envelope_summary_path = output_dir / "resumo_envoltoria.txt"
+
+        write_results_json(envelope, envelope_json_path)
+        write_envelope_summary_txt(envelope, envelope_summary_path)
+
+        print(f"Envoltória salva em: {envelope_json_path}")
+        print(f"Resumo da envoltória salvo em: {envelope_summary_path}")
         print()
 
     elif has_load_cases(model):
