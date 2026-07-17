@@ -209,6 +209,7 @@ class StructuralModel:
     """
 
     name: str = "modelo_sem_nome"
+    design_code: dict[str, str] = field(default_factory=dict)
 
     nodes: list[Node] = field(default_factory=list)
     materials: list[Material] = field(default_factory=list)

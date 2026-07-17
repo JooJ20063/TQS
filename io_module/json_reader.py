@@ -1,6 +1,7 @@
 # io_module/json_reader.py
 
 from __future__ import annotations
+from core.norms.config import default_abnt_config
 
 import json
 from pathlib import Path
@@ -38,7 +39,8 @@ def parse_model(data: dict) -> StructuralModel:
     """
 
     model = StructuralModel(
-        name=data.get("name", "modelo_sem_nome")
+    name=data.get("name", "modelo_sem_nome"),
+    design_code=parse_design_code(data.get("design_code", {})),
     )
 
     model.nodes = parse_nodes(data.get("nodes", []))
@@ -63,6 +65,30 @@ def parse_model(data: dict) -> StructuralModel:
 # ==========================================================
 # PARSERS DAS ENTIDADES
 # ==========================================================
+
+def parse_design_code(item: dict) -> dict[str, str]:
+
+    config = default_abnt_config()
+
+    design_code = {
+        "concrete_code": config.concrete_code,
+        "concrete_code_version": config.concrete_code_version,
+        "actions_code": config.actions_code,
+        "actions_code_version": config.actions_code_version,
+        "combinations_code": config.combinations_code,
+        "combinations_code_version": config.combinations_code_version,
+        "wind_code": config.wind_code,
+        "wind_code_version": config.wind_code_version,
+        "mode": config.mode,
+    }
+
+    if not isinstance(item, dict):
+        return design_code
+
+    for key, value in item.items():
+        design_code[str(key)] = str(value)
+
+    return design_code
 
 def parse_nodes(items: list[dict]) -> list[Node]:
     nodes: list[Node] = []
