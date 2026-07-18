@@ -34,7 +34,8 @@ def bar_area_cm2(diameter_mm):
 def select_rebar_options(
     as_required_cm2,
     diameters_mm=DEFAULT_BAR_DIAMETERS_MM,
-    max_bars=8,
+    min_diameter_mm=10.0,
+    max_bars=6,
     max_options=5,
 ):
     """
@@ -61,6 +62,9 @@ def select_rebar_options(
     for diameter_mm in diameters_mm:
         single_area_cm2 = bar_area_cm2(diameter_mm)
 
+        if diameter_mm < min_diameter_mm:
+            continue
+
         for quantity in range(1, max_bars + 1):
             total_area_cm2 = quantity * single_area_cm2
 
@@ -85,8 +89,8 @@ def select_rebar_options(
     options.sort(
         key=lambda option: (
             option["surplus_cm2"],
-            option["diameter_mm"],
             option["quantity"],
+            option["diameter_mm"],
         )
     )
 
