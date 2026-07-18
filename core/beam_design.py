@@ -2,7 +2,7 @@ from pathlib import Path
 import csv
 
 from core.norms.nbr6118.flexure import design_rectangular_section_flexure
-
+from core.norms.nbr6118.rebar import select_rebar_options
 
 CSV_COLUMNS = [
     "elemento",
@@ -16,10 +16,13 @@ CSV_COLUMNS = [
     "momento_abs_kNm",
     "caso_momento",
     "posicao_armadura",
-        "as_calculado_cm2",
+    "as_calculado_cm2",
     "as_minimo_cm2",
     "as_maximo_cm2",
     "as_adotado_cm2",
+    "sugestao_barras",
+    "as_barras_cm2",
+    "sobra_barras_percent",
     "status",
     "observacao",
     ]
@@ -35,18 +38,6 @@ def design_beams_from_envelope(
     stirrup_diameter_m=0.005,
     longitudinal_bar_diameter_m=0.0125,
 ):
-    """
-    Dimensionamento preliminar de vigas retangulares a partir da envoltória.
-
-    Escopo atual:
-    - considera apenas elementos horizontais como vigas;
-    - considera apenas seções retangulares com b e h;
-    - usa o maior momento absoluto da envoltória;
-    - chama o núcleo normativo preliminar em core.norms.nbr6118.flexure;
-    - gera CSV e relatório TXT.
-
-    Ainda não é dimensionamento normativo completo.
-    """
 
     rows = create_beam_design_rows(
         model=model,
@@ -142,6 +133,8 @@ def create_beam_design_rows(
         as_min_cm2 = flexure_result["results"]["as_min_cm2"]
         as_max_cm2 = flexure_result["results"]["as_max_cm2"]
         as_adopted_cm2 = flexure_result["results"]["as_adopted_cm2"]
+        rebar_options = select_rebar_options(as_adopted_cm2)
+        best_rebar_option = rebar_options[0] if rebar_options else None
 
         reinforcement_position = flexure_result["results"]["reinforcement_position"]
         status = flexure_result["status"]
@@ -163,6 +156,18 @@ def create_beam_design_rows(
                 "as_minimo_cm2": format_number(as_min_cm2),
                 "as_maximo_cm2": format_number(as_max_cm2),
                 "as_adotado_cm2": format_number(as_adopted_cm2),
+                "sugestao_barras": (
+                    best_rebar_option["label"] if best_rebar_option else ""
+                ),
+                "as_barras_cm2": (
+                    format_number(best_rebar_option["total_area_cm2"])
+                    if best_rebar_option
+                    else ""
+                ),
+                "sobra_barras_percent": (
+                    format_number(best_rebar_option["surplus_percent"])
+                    if best_rebar_option
+                    else ""),
                 "status": status,
                 "observacao": (
                     f"Armadura {reinforcement_position}. "
@@ -257,6 +262,9 @@ def create_unavailable_row(element_envelope, observation):
         "as_minimo_cm2": "",
         "as_maximo_cm2": "",
         "as_adotado_cm2": "",
+        "sugestao_barras": "",
+        "as_barras_cm2": "",
+        "sobra_barras_percent": "",
         "status": "not_available",
         "observacao": observation,
     }
@@ -317,6 +325,8 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
     lines.append("  - ancoragem")
     lines.append("  - fissuração")
     lines.append("  - flecha")
+    lines.append("  - espaçamento entre barras")
+    lines.append("  - número de camadas")
     lines.append("")
     lines.append("-" * 72)
     lines.append("Vigas analisadas")
@@ -357,6 +367,15 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
             )
             lines.append(
                 f"  As adotado = {row['as_adotado_cm2']} cm²"
+            )
+            lines.append(
+                f"  Sugestão de barras = {row['sugestao_barras']}"
+            )
+            lines.append(
+                f"  As das barras = {row['as_barras_cm2']} cm²"
+            )
+            lines.append(
+                f"  Sobra de aço = {row['sobra_barras_percent']} %"
             )
             lines.append(
                 f"  Status = {row['status']}"
