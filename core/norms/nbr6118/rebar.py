@@ -118,3 +118,62 @@ def format_diameter(diameter_mm):
         return str(int(diameter_mm))
 
     return str(diameter_mm).replace(".", ",")
+
+def check_single_layer_spacing(
+    quantity,
+    diameter_mm,
+    beam_width_m,
+    cover_m=0.03,
+    stirrup_diameter_m=0.005,
+    min_clear_spacing_m=0.02,
+):
+    """
+    Verifica, de forma preliminar, se uma quantidade de barras cabe em uma
+    única camada horizontal da viga.
+
+    Modelo simplificado:
+    - considera cobrimento lateral;
+    - considera diâmetro do estribo;
+    - considera espaçamento livre mínimo parametrizado;
+    - não verifica camadas múltiplas;
+    - não verifica agregados;
+    - não verifica ancoragem.
+
+    Todas as dimensões principais estão em metros, exceto diameter_mm.
+    """
+
+    quantity = int(quantity)
+    diameter_m = float(diameter_mm) / 1000.0
+    beam_width_m = float(beam_width_m)
+
+    if quantity <= 0:
+        return {
+            "status": "not_available",
+            "available_width_m": 0.0,
+            "required_width_m": 0.0,
+            "clear_spacing_m": 0.0,
+            "message": "Quantidade de barras inválida.",
+        }
+
+    available_width_m = beam_width_m - 2.0 * (float(cover_m) + float(stirrup_diameter_m))
+
+    if quantity == 1:
+        required_width_m = diameter_m
+        clear_spacing_m = available_width_m
+    else:
+        required_width_m = quantity * diameter_m + (quantity - 1) * float(min_clear_spacing_m)
+        clear_spacing_m = (available_width_m - quantity * diameter_m) / (quantity - 1)
+
+    fits = required_width_m <= available_width_m
+
+    return {
+        "status": "ok" if fits else "not_ok",
+        "available_width_m": available_width_m,
+        "required_width_m": required_width_m,
+        "clear_spacing_m": clear_spacing_m,
+        "message": (
+            "Barras cabem em uma camada."
+            if fits
+            else "Barras não cabem em uma camada com o espaçamento mínimo adotado."
+        ),
+    }

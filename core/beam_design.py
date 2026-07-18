@@ -2,7 +2,10 @@ from pathlib import Path
 import csv
 
 from core.norms.nbr6118.flexure import design_rectangular_section_flexure
-from core.norms.nbr6118.rebar import select_rebar_options
+from core.norms.nbr6118.rebar import (
+    select_rebar_options,
+    check_single_layer_spacing,
+)
 
 CSV_COLUMNS = [
     "elemento",
@@ -23,6 +26,10 @@ CSV_COLUMNS = [
     "sugestao_barras",
     "as_barras_cm2",
     "sobra_barras_percent",
+    "espacamento_status",
+    "espacamento_livre_cm",
+    "largura_disponivel_cm",
+    "largura_necessaria_cm",
     "status",
     "observacao",
     ]
@@ -136,6 +143,17 @@ def create_beam_design_rows(
         rebar_options = select_rebar_options(as_adopted_cm2)
         best_rebar_option = rebar_options[0] if rebar_options else None
 
+        spacing_check = None
+
+        if best_rebar_option:
+            spacing_check = check_single_layer_spacing(
+                quantity=best_rebar_option["quantity"],
+                diameter_mm=best_rebar_option["diameter_mm"],
+                beam_width_m=b_m,
+                cover_m=cover_m,
+                stirrup_diameter_m=stirrup_diameter_m,
+                )
+
         reinforcement_position = flexure_result["results"]["reinforcement_position"]
         status = flexure_result["status"]
 
@@ -168,6 +186,24 @@ def create_beam_design_rows(
                     format_number(best_rebar_option["surplus_percent"])
                     if best_rebar_option
                     else ""),
+                "espacamento_status": (
+                    spacing_check["status"] if spacing_check else ""
+                ),
+                "espacamento_livre_cm": (
+                    format_number(spacing_check["clear_spacing_m"] * 100.0)
+                    if spacing_check
+                    else ""
+                ),
+                "largura_disponivel_cm": (
+                    format_number(spacing_check["available_width_m"] * 100.0)
+                    if spacing_check
+                    else ""
+                ),
+                "largura_necessaria_cm": (
+                    format_number(spacing_check["required_width_m"] * 100.0)
+                    if spacing_check
+                    else ""
+                ),
                 "status": status,
                 "observacao": (
                     f"Armadura {reinforcement_position}. "
@@ -265,6 +301,10 @@ def create_unavailable_row(element_envelope, observation):
         "sugestao_barras": "",
         "as_barras_cm2": "",
         "sobra_barras_percent": "",
+        "espacamento_status": "",
+        "espacamento_livre_cm": "",
+        "largura_disponivel_cm": "",
+        "largura_necessaria_cm": "",
         "status": "not_available",
         "observacao": observation,
     }
@@ -325,7 +365,6 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
     lines.append("  - ancoragem")
     lines.append("  - fissuração")
     lines.append("  - flecha")
-    lines.append("  - espaçamento entre barras")
     lines.append("  - número de camadas")
     lines.append("")
     lines.append("-" * 72)
@@ -376,6 +415,18 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
             )
             lines.append(
                 f"  Sobra de aço = {row['sobra_barras_percent']} %"
+            )
+            lines.append(
+                f"  Verificação de espaçamento = {row['espacamento_status']}"
+            )
+            lines.append(
+                f"  Espaçamento livre estimado = {row['espacamento_livre_cm']} cm"
+            )
+            lines.append(
+                f"  Largura disponível = {row['largura_disponivel_cm']} cm"
+            )
+            lines.append(
+                f"  Largura necessária = {row['largura_necessaria_cm']} cm"
             )
             lines.append(
                 f"  Status = {row['status']}"
