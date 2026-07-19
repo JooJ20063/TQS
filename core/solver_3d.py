@@ -548,9 +548,7 @@ def equivalent_nodal_load_local_3d(model: StructuralModel, load) -> np.ndarray:
     element = model.get_element(load.element)
     _, _, _, L, _, _, _ = element.geometry_3d(model)
 
-    qx = float(load.qx)
-    qy = float(load.qy)
-    qz = float(load.qz)
+    qx, qy, qz = distributed_load_components_local_3d(model, load)
 
     f = np.zeros(12, dtype=float)
 
@@ -653,3 +651,46 @@ def check_global_equilibrium_3d(
         "tolerance": tolerance,
         "status": status,
     }
+
+def distributed_load_components_local_3d(
+    model: StructuralModel,
+    load,
+) -> tuple[float, float, float]:
+    """
+    Retorna os componentes qx, qy, qz da carga distribuída no sistema local.
+
+    Se a carga já estiver em coordenadas locais, retorna diretamente.
+
+    Se a carga estiver em coordenadas globais, converte:
+    q_local = R @ q_global
+
+    onde R é a matriz dos eixos locais da barra.
+    """
+
+    q = np.array(
+        [
+            float(load.qx),
+            float(load.qy),
+            float(load.qz),
+        ],
+        dtype=float,
+    )
+
+    coordinate_system = getattr(load, "coordinate_system", "local")
+
+    if coordinate_system == "local":
+        return float(q[0]), float(q[1]), float(q[2])
+
+    if coordinate_system == "global":
+        element = model.get_element(load.element)
+        local_axes = local_axis_matrix_3d(model, element)
+
+        q_local = local_axes @ q
+
+        return float(q_local[0]), float(q_local[1]), float(q_local[2])
+
+    raise ValueError(
+        f"Carga distribuída no elemento {load.element} possui "
+        f"coordinate_system='{coordinate_system}' inválido. "
+        "Use 'local' ou 'global'."
+    )

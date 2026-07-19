@@ -202,7 +202,9 @@ class DistributedLoad:
     """
     Carga distribuída em uma barra.
 
-    qx, qy, qz são interpretados no sistema local da barra.
+    coordinate_system:
+    - local: qx, qy, qz no sistema local da barra;
+    - global: qx, qy, qz no sistema global da estrutura.
 
     Unidade recomendada:
     - kN/m
@@ -212,6 +214,7 @@ class DistributedLoad:
     qx: float = 0.0
     qy: float = 0.0
     qz: float = 0.0
+    coordinate_system: Literal["local", "global"] = "local"
 
 @dataclass(frozen=True)
 class LoadCase:

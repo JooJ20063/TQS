@@ -244,6 +244,9 @@ def parse_distributed_loads(items: list[dict]) -> list[DistributedLoad]:
             qx=float(item.get("qx", 0.0)),
             qy=float(item.get("qy", 0.0)),
             qz=float(item.get("qz", 0.0)),
+            coordinate_system=str(
+                item.get("coordinate_system", item.get("system", "local"))
+            ).lower(),
         )
 
         loads.append(load)
