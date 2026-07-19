@@ -1,0 +1,74 @@
+{
+    "name": "viga_3d_console_y",
+    "analysis_type": "frame3d",
+
+    "nodes": [
+        {
+            "id": 1,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        },
+        {
+            "id": 2,
+            "x": 0.0,
+            "y": 4.0,
+            "z": 0.0
+        }
+    ],
+
+    "materials": [
+        {
+            "id": 1,
+            "name": "concreto_C25",
+            "E": 25000000.0,
+            "gamma": 25.0,
+            "poisson": 0.2
+        }
+    ],
+
+    "sections": [
+        {
+            "id": 1,
+            "name": "retangular_20x50",
+            "type": "rectangular",
+            "b": 0.20,
+            "h": 0.50,
+            "A": 0.10,
+            "I": 0.0020833333333333333,
+            "Iy": 0.0020833333333333333,
+            "Iz": 0.00033333333333333343,
+            "J": 0.002416666666666667
+        }
+    ],
+
+    "elements": [
+        {
+            "id": 1,
+            "node_i": 1,
+            "node_j": 2,
+            "material": 1,
+            "section": 1,
+            "kind": "frame3d"
+        }
+    ],
+
+    "supports": [
+        {
+            "node": 1,
+            "ux": true,
+            "uy": true,
+            "uz": true,
+            "rx": true,
+            "ry": true,
+            "rz": true
+        }
+    ],
+
+    "nodal_loads": [
+        {
+            "node": 2,
+            "fz": -10.0
+        }
+    ]
+}
