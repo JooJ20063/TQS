@@ -1,4 +1,4 @@
-name: MiniTQS CI
+name: Estruturalis
 
 on:
   pull_request:
@@ -54,17 +54,25 @@ jobs:
         run: |
           python -m compileall app core io_module plots
 
-      - name: Run MiniTQS - central load beam
+      - name: Run Estruturalis - central load beam
         run: |
           python app/main.py examples/viga_carga_central.json -o results/ci_viga_carga_central
 
-      - name: Run MiniTQS - self weight frame
+      - name: Run Estruturalis - self weight frame
         run: |
           python app/main.py examples/portico_peso_proprio.json -o results/ci_portico_peso_proprio
 
-      - name: Run MiniTQS - load combinations
+      - name: Run Estruturalis - load combinations
         run: |
           python app/main.py examples/portico_combinacoes.json -o results/ci_portico_combinacoes
+
+      - name: Run Estruturalis - frame3d cantilever nodal load
+        run: |
+          python app/main.py examples/viga_3d_console.json -o results/ci_viga_3d_console
+
+      - name: Run Estruturalis - frame3d cantilever distributed load
+        run: |
+          python app/main.py examples/viga_3d_console_q.json -o results/ci_viga_3d_console_q      
 
       - name: Verify beam outputs
         run: |
@@ -108,3 +116,38 @@ jobs:
           test -f results/ci_portico_combinacoes/dimensionamento_vigas.csv
           test -f results/ci_portico_combinacoes/resumo_dimensionamento_vigas.txt
           test -f results/ci_portico_combinacoes/resumo_normativo.txt
+      - name: Verify frame3d outputs
+        run: |
+          test -f results/ci_viga_3d_console/resultados.json
+          test -f results/ci_viga_3d_console_q/resultados.json
+
+          python - <<'PY'
+          import json
+          import math
+
+          def read(path):
+              with open(path, "r", encoding="utf-8") as file:
+                  return json.load(file)
+
+          nodal = read("results/ci_viga_3d_console/resultados.json")
+          distributed = read("results/ci_viga_3d_console_q/resultados.json")
+
+          assert nodal["analysis_type"] == "frame3d"
+          assert distributed["analysis_type"] == "frame3d"
+
+          nodal_node_2 = nodal["displacements"][1]
+          nodal_reaction = nodal["reactions"][0]
+
+          assert math.isclose(nodal_node_2["uz"], -0.0256, rel_tol=1e-9, abs_tol=1e-12)
+          assert math.isclose(nodal_reaction["fz"], 10.0, rel_tol=1e-9, abs_tol=1e-12)
+          assert math.isclose(nodal_reaction["my"], -40.0, rel_tol=1e-9, abs_tol=1e-12)
+
+          distributed_node_2 = distributed["displacements"][1]
+          distributed_reaction = distributed["reactions"][0]
+
+          assert math.isclose(distributed_node_2["uz"], -0.0384, rel_tol=1e-9, abs_tol=1e-12)
+          assert math.isclose(distributed_reaction["fz"], 40.0, rel_tol=1e-9, abs_tol=1e-12)
+          assert math.isclose(distributed_reaction["my"], -80.0, rel_tol=1e-9, abs_tol=1e-12)
+
+          print("Frame3D checks passed.")
+          PY

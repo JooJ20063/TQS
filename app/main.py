@@ -13,10 +13,19 @@ def run_single_analysis(model, output_dir: Path) -> dict:
     """
     Executa uma análise individual:
     - valida modelo;
-    - resolve;
-    - pós-processa;
+    - escolhe solver conforme analysis_type;
     - salva JSON;
-    - gera diagramas.
+    - gera diagramas apenas para frame2d.
+    """
+
+    if getattr(model, "analysis_type", "frame2d") == "frame3d":
+        return run_single_analysis_3d(model, output_dir)
+
+    return run_single_analysis_2d(model, output_dir)
+
+def run_single_analysis_2d(model, output_dir: Path) -> dict:
+    """
+    Executa uma análise 2D.
     """
 
     from core.validation import validate_model
@@ -46,6 +55,102 @@ def run_single_analysis(model, output_dir: Path) -> dict:
     return results
 
 
+def run_single_analysis_3d(model, output_dir: Path) -> dict:
+    """
+    Executa uma análise 3D.
+
+    Nesta etapa:
+    - resolve com solver_3d;
+    - salva JSON;
+    - não gera diagramas;
+    - não roda pós-processamento 2D.
+    """
+
+    from core.validation import validate_model
+    from core.solver_3d import solve_structure_3d
+    from io_module.results_writer import write_results_json
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("[3/5] Validando e resolvendo modelo estrutural 3D...")
+
+    validate_model(model)
+    results = solve_structure_3d(model)
+
+    print_analysis_summary_3d(results)
+
+    print("[4/5] Salvando resultados...")
+
+    write_results_json(results, output_dir / "resultados.json")
+
+    print("[5/5] Diagramas 3D ainda não implementados.")
+
+    return results
+
+
+def print_analysis_summary_3d(results: dict) -> None:
+    """
+    Imprime um resumo simples da análise 3D.
+    """
+
+    print()
+    print("-" * 60)
+    print("Resumo da análise 3D")
+    print("-" * 60)
+    print(f"Nós:               {results['number_of_nodes']}")
+    print(f"Elementos:         {results['number_of_elements']}")
+    print(f"Graus de liberdade:{results['number_of_dofs']}")
+
+    displacement_entry = find_max_abs_result_entry(
+        rows=results["displacements"],
+        keys=("ux", "uy", "uz"),
+    )
+
+    rotation_entry = find_max_abs_result_entry(
+        rows=results["displacements"],
+        keys=("rx", "ry", "rz"),
+    )
+
+    print()
+    print("Deslocamentos máximos:")
+
+    if displacement_entry:
+        print(
+            f"  |{displacement_entry['key']}|max = "
+            f"{displacement_entry['value']:.6e} m no nó {displacement_entry['node']}"
+        )
+
+    if rotation_entry:
+        print(
+            f"  |{rotation_entry['key']}|max = "
+            f"{rotation_entry['value']:.6e} rad no nó {rotation_entry['node']}"
+        )
+
+
+def find_max_abs_result_entry(rows, keys):
+    """
+    Procura o maior valor absoluto em uma lista de dicionários.
+    """
+
+    best = None
+
+    for row in rows:
+        for key in keys:
+            value = float(row.get(key, 0.0))
+
+            candidate = {
+                "node": row.get("node"),
+                "key": key,
+                "value": value,
+                "abs_value": abs(value),
+            }
+
+            if best is None or candidate["abs_value"] > best["abs_value"]:
+                best = candidate
+
+    return best
+
+
 def run_analysis(input_file: Path, output_dir: Path) -> None:
     """
     Executa a análise estrutural a partir de um arquivo JSON.
@@ -62,7 +167,7 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("MiniTQS - Análise Estrutural 2D")
+    print("Estruturalis - Análise Estrutural")
     print("=" * 60)
     print(f"Arquivo de entrada: {input_file}")
     print(f"Pasta de saída:      {output_dir}")
@@ -74,6 +179,7 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
     from core.normative_report import write_normative_summary_txt
 
     model = read_model_from_json(input_file)
+    print(f"Tipo de análise: {model.analysis_type}")
 
     normative_summary_path = output_dir / "resumo_normativo.txt"
     write_normative_summary_txt(model, normative_summary_path)
@@ -111,6 +217,14 @@ def run_analysis(input_file: Path, output_dir: Path) -> None:
             print()
             print(f"Resultados da combinação salvos em: {combination_output_dir}")
             print()
+
+        if model.analysis_type == "frame3d":
+            print("=" * 60)
+            print("Envoltória e dimensionamento 3D ainda não implementados.")
+            print("=" * 60)
+            print("Resultados 3D das combinações foram salvos nas subpastas.")
+            print()
+            return
 
         print("=" * 60)
         print("Gerando envoltória de esforços")
