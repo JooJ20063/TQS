@@ -5,6 +5,7 @@ from core.norms.nbr6118.flexure import design_rectangular_section_flexure
 from core.norms.nbr6118.rebar import (
     select_rebar_options,
     check_single_layer_spacing,
+    suggest_rebar_layer_layout,
 )
 
 CSV_COLUMNS = [
@@ -30,6 +31,10 @@ CSV_COLUMNS = [
     "espacamento_livre_cm",
     "largura_disponivel_cm",
     "largura_necessaria_cm",
+    "camadas_status",
+    "numero_camadas",
+    "barras_por_camada",
+    "capacidade_barras_por_camada",
     "status",
     "observacao",
     ]
@@ -144,15 +149,25 @@ def create_beam_design_rows(
         best_rebar_option = rebar_options[0] if rebar_options else None
 
         spacing_check = None
+        layer_layout = None
 
         if best_rebar_option:
+
             spacing_check = check_single_layer_spacing(
                 quantity=best_rebar_option["quantity"],
                 diameter_mm=best_rebar_option["diameter_mm"],
                 beam_width_m=b_m,
                 cover_m=cover_m,
                 stirrup_diameter_m=stirrup_diameter_m,
-                )
+            )
+
+            layer_layout = suggest_rebar_layer_layout(
+                quantity=best_rebar_option["quantity"],
+                diameter_mm=best_rebar_option["diameter_mm"],
+                beam_width_m=b_m,
+                cover_m=cover_m,
+                stirrup_diameter_m=stirrup_diameter_m,
+            )
 
         reinforcement_position = flexure_result["results"]["reinforcement_position"]
         status = flexure_result["status"]
@@ -203,6 +218,22 @@ def create_beam_design_rows(
                     format_number(spacing_check["required_width_m"] * 100.0)
                     if spacing_check
                     else ""
+                ),
+                "camadas_status": (
+                    layer_layout["status"]
+                    if layer_layout else ""
+                ),
+                "numero_camadas": (
+                    layer_layout["number_of_layers"]
+                    if layer_layout else ""
+                ),
+                "barras_por_camada": (
+                    layer_layout["layout_label"]
+                    if layer_layout else ""
+                ),
+                "capacidade_barras_por_camada": (
+                    layer_layout["max_bars_per_layer"]
+                    if layer_layout else ""
                 ),
                 "status": status,
                 "observacao": (
@@ -365,7 +396,6 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
     lines.append("  - ancoragem")
     lines.append("  - fissuração")
     lines.append("  - flecha")
-    lines.append("  - número de camadas")
     lines.append("")
     lines.append("-" * 72)
     lines.append("Vigas analisadas")
@@ -427,6 +457,18 @@ def write_beam_design_summary(rows, file_path, fck_mpa, fyk_mpa):
             )
             lines.append(
                 f"  Largura necessária = {row['largura_necessaria_cm']} cm"
+            )
+            lines.append(
+                f"  Verificação de camadas = {row['camadas_status']}"
+            )
+            lines.append(
+                f"  Número de camadas = {row['numero_camadas']}"
+            )
+            lines.append(
+                f"  Barras por camada = {row['barras_por_camada']}"
+            )
+            lines.append(
+                f"  Capacidade por camada = {row['capacidade_barras_por_camada']} barras"
             )
             lines.append(
                 f"  Status = {row['status']}"
