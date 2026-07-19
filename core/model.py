@@ -25,6 +25,7 @@ class Node:
     id: int
     x: float
     y: float
+    z: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -41,22 +42,32 @@ class Material:
     name: str
     E: float
     gamma: float = 0.0
+    poisson: float | None = None
+    G: float | None = None
 
+    def shear_modulus(self) -> float:
+        if self.G is not None:
+            return self.G
+
+        if self.poisson is not None:
+            return self.E / (2.0 * (1.0 + self.poisson))
+
+        raise ValueError(
+            f"Material {self.id} não possui G nem coeficiente de Poisson."
+            )
 
 @dataclass(frozen=True)
 class Section:
     """
     Seção transversal da barra.
 
-    Unidades recomendadas:
-    - A em m²
-    - I em m⁴
+    Para frame2d:
+    - I é usado pelo solver antigo.
 
-    Para seções retangulares:
-    - b em m
-    - h em m
-    - A = b*h
-    - I = b*h³/12
+    Para frame3d:
+    - Iy: inércia em torno do eixo local y
+    - Iz: inércia em torno do eixo local z
+    - J: constante de torção
     """
 
     id: int
@@ -66,16 +77,20 @@ class Section:
     shape: str = "generic"
     b: float | None = None
     h: float | None = None
-
+    Iy: float | None = None
+    Iz: float | None = None
+    J: float | None = None
 
 @dataclass(frozen=True)
 class Element:
     """
-    Elemento de barra 2D.
+    Elemento de barra.
 
     Tipos previstos:
     - frame2d: pórtico plano
+    - frame3d: pórtico espacial
     - truss2d: treliça plana, futuramente
+    - truss3d: treliça espacial, futuramente
     """
 
     id: int
@@ -83,11 +98,13 @@ class Element:
     node_j: int
     material: int
     section: int
-    kind: Literal["frame2d", "truss2d"] = "frame2d"
+    kind: Literal["frame2d", "frame3d", "truss2d", "truss3d"] = "frame2d"
 
     def geometry(self, model: StructuralModel) -> tuple[float, float, float, float, float]:
         """
-        Retorna a geometria do elemento.
+        Geometria 2D legada.
+
+        Mantida para não quebrar solver, plots, peso próprio e exemplos atuais.
 
         Saída:
         dx, dy, L, c, s
@@ -109,19 +126,53 @@ class Element:
 
         return dx, dy, L, c, s
 
+    def geometry_3d(
+        self,
+        model: StructuralModel,
+    ) -> tuple[float, float, float, float, float, float, float]:
+        """
+        Geometria 3D.
+
+        Saída:
+        dx, dy, dz, L, lx, ly, lz
+        """
+
+        node_i = model.get_node(self.node_i)
+        node_j = model.get_node(self.node_j)
+
+        dx = node_j.x - node_i.x
+        dy = node_j.y - node_i.y
+        dz = node_j.z - node_i.z
+
+        L = math.sqrt(dx**2 + dy**2 + dz**2)
+
+        if L <= 0:
+            raise ValueError(f"Elemento {self.id} possui comprimento nulo.")
+
+        lx = dx / L
+        ly = dy / L
+        lz = dz / L
+
+        return dx, dy, dz, L, lx, ly, lz
 
 @dataclass(frozen=True)
 class Support:
     """
     Restrição de apoio em um nó.
 
-    True  = grau de liberdade restringido
-    False = grau de liberdade livre
+    frame2d usa:
+    - ux, uy, rz
+
+    frame3d usa:
+    - ux, uy, uz, rx, ry, rz
     """
 
     node: int
     ux: bool = False
     uy: bool = False
+    uz: bool = False
+    rx: bool = False
+    ry: bool = False
     rz: bool = False
 
 
@@ -130,15 +181,19 @@ class NodalLoad:
     """
     Carga aplicada diretamente em um nó.
 
-    Unidades recomendadas:
-    - fx em kN
-    - fy em kN
-    - mz em kN.m
+    Forças:
+    - fx, fy, fz em kN
+
+    Momentos:
+    - mx, my, mz em kN.m
     """
 
     node: int
     fx: float = 0.0
     fy: float = 0.0
+    fz: float = 0.0
+    mx: float = 0.0
+    my: float = 0.0
     mz: float = 0.0
 
 
@@ -147,17 +202,16 @@ class DistributedLoad:
     """
     Carga distribuída em uma barra.
 
-    qx e qy são interpretados no sistema local da barra.
+    qx, qy, qz são interpretados no sistema local da barra.
 
     Unidade recomendada:
-    - qx em kN/m
-    - qy em kN/m
+    - kN/m
     """
 
     element: int
     qx: float = 0.0
     qy: float = 0.0
-
+    qz: float = 0.0
 
 @dataclass(frozen=True)
 class LoadCase:
@@ -209,6 +263,7 @@ class StructuralModel:
     """
 
     name: str = "modelo_sem_nome"
+    analysis_type: Literal["frame2d", "frame3d"] = "frame2d"
     design_code: dict[str, str] = field(default_factory=dict)
 
     nodes: list[Node] = field(default_factory=list)
@@ -295,31 +350,68 @@ class StructuralModel:
     def sorted_node_ids(self) -> list[int]:
         return sorted(node.id for node in self.nodes)
 
-    def dof_map(self) -> dict[int, tuple[int, int, int]]:
+    def dof_labels(self) -> tuple[str, ...]:
+        """
+        Retorna os rótulos dos graus de liberdade do modelo.
+
+        frame2d:
+        - ux, uy, rz
+
+        frame3d:
+        - ux, uy, uz, rx, ry, rz
+        """
+
+        if self.analysis_type == "frame3d":
+            return ("ux", "uy", "uz", "rx", "ry", "rz")
+
+        return ("ux", "uy", "rz")
+
+    def dofs_per_node(self) -> int:
+        """
+        Retorna a quantidade de graus de liberdade por nó.
+        """
+
+        return len(self.dof_labels())
+
+    def dof_map(self) -> dict[int, tuple[int, ...]]:
         """
         Cria o mapa dos graus de liberdade globais.
 
-        Para cada nó:
+        frame2d:
         nó n -> (ux, uy, rz)
+
+        frame3d:
+        nó n -> (ux, uy, uz, rx, ry, rz)
         """
 
-        mapping: dict[int, tuple[int, int, int]] = {}
+        mapping: dict[int, tuple[int, ...]] = {}
+        dofs_per_node = self.dofs_per_node()
 
         for index, node_id in enumerate(self.sorted_node_ids()):
-            base = 3 * index
-            mapping[node_id] = (base, base + 1, base + 2)
+            base = dofs_per_node * index
+            mapping[node_id] = tuple(
+                base + offset for offset in range(dofs_per_node)
+            )
 
         return mapping
 
     def number_of_dofs(self) -> int:
-        return 3 * len(self.nodes)
+        """
+        Retorna o número total de graus de liberdade do modelo.
+        """
+
+        return self.dofs_per_node() * len(self.nodes)
 
     def element_dofs(self, element: Element) -> list[int]:
         """
-        Retorna os 6 graus de liberdade globais de um elemento de pórtico 2D.
+        Retorna os graus de liberdade globais de um elemento.
 
-        Ordem:
+        frame2d:
         [ux_i, uy_i, rz_i, ux_j, uy_j, rz_j]
+
+        frame3d:
+        [ux_i, uy_i, uz_i, rx_i, ry_i, rz_i,
+         ux_j, uy_j, uz_j, rx_j, ry_j, rz_j]
         """
 
         dofs = self.dof_map()
@@ -327,34 +419,31 @@ class StructuralModel:
         dofs_i = dofs[element.node_i]
         dofs_j = dofs[element.node_j]
 
-        return [
-            dofs_i[0],
-            dofs_i[1],
-            dofs_i[2],
-            dofs_j[0],
-            dofs_j[1],
-            dofs_j[2],
-        ]
+        return list(dofs_i) + list(dofs_j)
 
     def restrained_dofs(self) -> list[int]:
+        """
+        Retorna os graus de liberdade restringidos pelos apoios.
+        """
+
         dofs = self.dof_map()
+        labels = self.dof_labels()
         restrained: list[int] = []
 
         for support in self.supports:
-            ux, uy, rz = dofs[support.node]
+            node_dofs = dofs[support.node]
 
-            if support.ux:
-                restrained.append(ux)
-
-            if support.uy:
-                restrained.append(uy)
-
-            if support.rz:
-                restrained.append(rz)
+            for index, label in enumerate(labels):
+                if getattr(support, label):
+                    restrained.append(node_dofs[index])
 
         return sorted(restrained)
 
     def free_dofs(self) -> list[int]:
+        """
+        Retorna os graus de liberdade livres.
+        """
+
         total_dofs = set(range(self.number_of_dofs()))
         restrained = set(self.restrained_dofs())
 

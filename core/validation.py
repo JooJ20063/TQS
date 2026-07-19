@@ -12,6 +12,11 @@ ALLOWED_LOAD_CASE_TYPES = {
     "accidental",
 }
 
+ALLOWED_ANALYSIS_TYPES = {
+    "frame2d",
+    "frame3d",
+}
+
 def validate_model(model: StructuralModel) -> None:
     """
     Valida o modelo estrutural antes da análise.
@@ -20,6 +25,7 @@ def validate_model(model: StructuralModel) -> None:
     """
 
     validate_basic_entities(model)
+    validate_analysis_type(model)
     validate_unique_ids(model)
     validate_references(model)
     validate_geometry(model)
@@ -51,6 +57,13 @@ def validate_basic_entities(model: StructuralModel) -> None:
     if len(model.supports) == 0:
         raise ValueError("O modelo não possui apoios.")
 
+def validate_analysis_type(model: StructuralModel) -> None:
+    if model.analysis_type not in ALLOWED_ANALYSIS_TYPES:
+        allowed = ", ".join(sorted(ALLOWED_ANALYSIS_TYPES))
+        raise ValueError(
+            f"analysis_type='{model.analysis_type}' inválido. "
+            f"Tipos aceitos: {allowed}."
+        )
 
 def validate_unique_ids(model: StructuralModel) -> None:
     check_unique_ids([node.id for node in model.nodes], "nós")
@@ -142,11 +155,13 @@ def validate_load_references(
 
 def validate_geometry(model: StructuralModel) -> None:
     for element in model.elements:
-        _, _, length, _, _ = element.geometry(model)
+        if model.analysis_type == "frame3d":
+            _, _, _, length, _, _, _ = element.geometry_3d(model)
+        else:
+            _, _, length, _, _ = element.geometry(model)
 
         if length <= 0:
             raise ValueError(f"Elemento {element.id} possui comprimento inválido.")
-
 
 # ==========================================================
 # MATERIAIS E SEÇÕES
@@ -176,6 +191,13 @@ def validate_sections(model: StructuralModel) -> None:
             raise ValueError(
                 f"Seção {section.id} possui inércia I <= 0."
             )
+        for name in ("Iy", "Iz", "J"):
+            value = getattr(section, name)
+
+            if value is not None and value <= 0:
+                raise ValueError(
+                    f"Seção {section.id} possui {name} <= 0."
+                )
 
         if section.shape == "rectangular":
             if section.b is None or section.h is None:
@@ -199,10 +221,13 @@ def validate_supports(model: StructuralModel) -> None:
     if len(restrained) == 0:
         raise ValueError("O modelo não possui nenhum grau de liberdade restringido.")
 
-    if len(restrained) < 3:
+    min_restraints = 6 if model.analysis_type == "frame3d" else 3
+
+    if len(restrained) < min_restraints:
         raise ValueError(
             "O modelo possui poucos vínculos. "
-            "Para pórtico plano 2D, geralmente são necessários pelo menos 3 vínculos."
+            f"Para {model.analysis_type}, geralmente são necessários pelo menos "
+            f"{min_restraints} vínculos."
         )
 
     support_nodes = [support.node for support in model.supports]
@@ -213,8 +238,10 @@ def validate_supports(model: StructuralModel) -> None:
             "Use apenas um bloco de apoio por nó."
         )
 
+    labels = model.dof_labels()
+
     for support in model.supports:
-        if not support.ux and not support.uy and not support.rz:
+        if not any(getattr(support, label) for label in labels):
             raise ValueError(
                 f"Apoio no nó {support.node} não restringe nenhum grau de liberdade."
             )
@@ -233,17 +260,31 @@ def validate_loads(model: StructuralModel) -> None:
 
 def validate_load_values(nodal_loads, distributed_loads) -> None:
     for load in nodal_loads:
-        if load.fx == 0 and load.fy == 0 and load.mz == 0:
+        values = (
+            load.fx,
+            load.fy,
+            load.fz,
+            load.mx,
+            load.my,
+            load.mz,
+        )
+
+        if all(value == 0 for value in values):
             raise ValueError(
                 f"Carga nodal no nó {load.node} possui todos os valores iguais a zero."
             )
 
     for load in distributed_loads:
-        if load.qx == 0 and load.qy == 0:
-            raise ValueError(
-                f"Carga distribuída no elemento {load.element} possui qx e qy iguais a zero."
-            )
+        values = (
+            load.qx,
+            load.qy,
+            load.qz,
+        )
 
+        if all(value == 0 for value in values):
+            raise ValueError(
+                f"Carga distribuída no elemento {load.element} possui qx, qy e qz iguais a zero."
+            )
 
 # ==========================================================
 # CASOS E COMBINAÇÕES
