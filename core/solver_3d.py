@@ -369,10 +369,17 @@ def assemble_global_load_vector_3d(model: StructuralModel) -> np.ndarray:
         F[ry] += load.my
         F[rz] += load.mz
 
-    if model.distributed_loads:
-        raise NotImplementedError(
-            "Cargas distribuídas 3D ainda não foram implementadas no solver_3d."
-        )
+    for load in model.distributed_loads:
+        element = model.get_element(load.element)
+        element_dofs = model.element_dofs(element)
+
+        f_local = equivalent_nodal_load_local_3d(model, load)
+        T = transformation_matrix_3d(model, element)
+
+        f_global = T.T @ f_local
+
+        for local_index, global_index in enumerate(element_dofs):
+            F[global_index] += f_global[local_index]
 
     return F
 
@@ -397,8 +404,8 @@ def calculate_element_results_3d(
         k_local = element_local_stiffness_3d(model, element)
 
         d_local = T @ d_global_element
-        f_local = k_local @ d_local
-
+        f_fixed_local = equivalent_nodal_load_local_for_element_3d(model, element)
+        f_local = k_local @ d_local - f_fixed_local
         _, _, _, L, lx, ly, lz = element.geometry_3d(model)
 
         results.append(
@@ -445,6 +452,21 @@ def calculate_element_results_3d(
 
     return results
 
+def equivalent_nodal_load_local_for_element_3d(
+    model: StructuralModel,
+    element: Element,
+) -> np.ndarray:
+    """
+    Soma as cargas nodais equivalentes locais aplicadas em um elemento.
+    """
+
+    total = np.zeros(12, dtype=float)
+
+    for load in model.distributed_loads:
+        if load.element == element.id:
+            total += equivalent_nodal_load_local_3d(model, load)
+
+    return total
 
 def format_nodal_displacements_3d(
     model: StructuralModel,
@@ -506,3 +528,46 @@ def format_support_reactions_3d(
         )
 
     return output
+
+def equivalent_nodal_load_local_3d(model: StructuralModel, load) -> np.ndarray:
+    """
+    Vetor de cargas nodais equivalentes locais para carga distribuída uniforme 3D.
+
+    Ordem local:
+    [u_i, v_i, w_i, rx_i, ry_i, rz_i,
+     u_j, v_j, w_j, rx_j, ry_j, rz_j]
+
+    Convenção:
+    - qx atua no eixo local x;
+    - qy atua no eixo local y;
+    - qz atua no eixo local z.
+    """
+
+    element = model.get_element(load.element)
+    _, _, _, L, _, _, _ = element.geometry_3d(model)
+
+    qx = float(load.qx)
+    qy = float(load.qy)
+    qz = float(load.qz)
+
+    f = np.zeros(12, dtype=float)
+
+    # Carga axial uniforme qx
+    f[0] += qx * L / 2.0
+    f[6] += qx * L / 2.0
+
+    # Carga transversal uniforme qy
+    # Atua no plano local x-y, associada a v e rz.
+    f[1] += qy * L / 2.0
+    f[5] += qy * L**2 / 12.0
+    f[7] += qy * L / 2.0
+    f[11] += -qy * L**2 / 12.0
+
+    # Carga transversal uniforme qz
+    # Atua no plano local x-z, associada a w e ry.
+    f[2] += qz * L / 2.0
+    f[4] += -qz * L**2 / 12.0
+    f[8] += qz * L / 2.0
+    f[10] += qz * L**2 / 12.0
+
+    return f
