@@ -197,6 +197,34 @@ def print_analysis_summary_3d(results: dict) -> None:
         unit="kN.m",
     )
 
+    print_global_equilibrium_3d(results)
+
+def print_global_equilibrium_3d(results: dict) -> None:
+    """
+    Imprime o equilíbrio global 3D.
+    """
+
+    equilibrium = results.get("equilibrium")
+
+    if not equilibrium:
+        return
+
+    sum_forces = equilibrium["sum_forces"]
+    sum_moments = equilibrium["sum_moments"]
+
+    print()
+    print("Equilíbrio global 3D:")
+    print(f"  ΣFx = {sum_forces['fx']:.6e}")
+    print(f"  ΣFy = {sum_forces['fy']:.6e}")
+    print(f"  ΣFz = {sum_forces['fz']:.6e}")
+    print(f"  ΣMx = {sum_moments['mx']:.6e}")
+    print(f"  ΣMy = {sum_moments['my']:.6e}")
+    print(f"  ΣMz = {sum_moments['mz']:.6e}")
+    print(f"  Norma forças:   {equilibrium['force_norm']:.6e}")
+    print(f"  Norma momentos: {equilibrium['moment_norm']:.6e}")
+    print(f"  Tolerância:     {equilibrium['tolerance']:.6e}")
+    print(f"  Status: {equilibrium['status']}")
+
 
 def print_max_element_force_3d(
     results: dict,
