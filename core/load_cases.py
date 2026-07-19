@@ -80,6 +80,7 @@ def build_model_for_combination(
         distributed_loads=distributed_loads,
         load_cases=[],
         combinations=[],
+        analysis_type=base_model.analysis_type,
     )
 
 

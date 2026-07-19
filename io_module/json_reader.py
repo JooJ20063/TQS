@@ -40,6 +40,7 @@ def parse_model(data: dict) -> StructuralModel:
 
     model = StructuralModel(
     name=data.get("name", "modelo_sem_nome"),
+    analysis_type=str(data.get("analysis_type", data.get("model_type", "frame2d"))).lower(),
     design_code=parse_design_code(data.get("design_code", {})),
     )
 
@@ -98,6 +99,7 @@ def parse_nodes(items: list[dict]) -> list[Node]:
             id=int(item["id"]),
             x=float(item["x"]),
             y=float(item["y"]),
+            z=float(item.get("z", 0.0)),
         )
 
         nodes.append(node)
@@ -114,6 +116,13 @@ def parse_materials(items: list[dict]) -> list[Material]:
             name=str(item.get("name", f"material_{item['id']}")),
             E=float(item["E"]),
             gamma=float(item.get("gamma", 0.0)),
+            poisson=(float(item["poisson"])
+            if "poisson" in item
+            else None),
+            G=(float(item["G"])
+               if "G" in item
+                else None
+            ),
         )
 
         materials.append(material)
@@ -132,7 +141,11 @@ def parse_sections(items: list[dict]) -> list[Section]:
             h = float(item["h"])
 
             A = float(item.get("A", b * h))
-            I = float(item.get("I", b * h**3 / 12.0))
+            Iy = float(item.get("Iy", b * h**3 / 12.0))
+            Iz = float(item.get("Iz", h * b**3 / 12.0))
+            J = float(item.get("J", Iy + Iz))
+
+            I = float(item.get("I", Iy))
 
             section = Section(
                 id=int(item["id"]),
@@ -142,17 +155,24 @@ def parse_sections(items: list[dict]) -> list[Section]:
                 shape="rectangular",
                 b=b,
                 h=h,
+                Iy=Iy,
+                Iz=Iz,
+                J=J,
             )
-
         else:
+            I = float(item["I"])
+
             section = Section(
                 id=int(item["id"]),
                 name=str(item.get("name", f"section_{item['id']}")),
                 A=float(item["A"]),
-                I=float(item["I"]),
+                I=I,
                 shape=section_type,
                 b=float(item["b"]) if "b" in item else None,
                 h=float(item["h"]) if "h" in item else None,
+                Iy=float(item["Iy"]) if "Iy" in item else None,
+                Iz=float(item["Iz"]) if "Iz" in item else None,
+                J=float(item["J"]) if "J" in item else None,
             )
 
         sections.append(section)
@@ -186,6 +206,9 @@ def parse_supports(items: list[dict]) -> list[Support]:
             node=int(item["node"]),
             ux=bool(item.get("ux", False)),
             uy=bool(item.get("uy", False)),
+            uz=bool(item.get("uz", False)),
+            rx=bool(item.get("rx", False)),
+            ry=bool(item.get("ry", False)),
             rz=bool(item.get("rz", False)),
         )
 
@@ -202,9 +225,11 @@ def parse_nodal_loads(items: list[dict]) -> list[NodalLoad]:
             node=int(item["node"]),
             fx=float(item.get("fx", 0.0)),
             fy=float(item.get("fy", 0.0)),
+            fz=float(item.get("fz", 0.0)),
+            mx=float(item.get("mx", 0.0)),
+            my=float(item.get("my", 0.0)),
             mz=float(item.get("mz", 0.0)),
         )
-
         loads.append(load)
 
     return loads
@@ -218,6 +243,7 @@ def parse_distributed_loads(items: list[dict]) -> list[DistributedLoad]:
             element=int(item["element"]),
             qx=float(item.get("qx", 0.0)),
             qy=float(item.get("qy", 0.0)),
+            qz=float(item.get("qz", 0.0)),
         )
 
         loads.append(load)
