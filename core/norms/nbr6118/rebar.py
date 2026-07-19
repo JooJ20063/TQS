@@ -177,3 +177,98 @@ def check_single_layer_spacing(
             else "Barras não cabem em uma camada com o espaçamento mínimo adotado."
         ),
     }
+
+def calculate_max_bars_per_layer(
+    diameter_mm,
+    beam_width_m,
+    cover_m=0.03,
+    stirrup_diameter_m=0.005,
+    min_clear_spacing_m=0.02,
+):
+    diameter_m = float(diameter_mm) / 1000.0
+
+    available_width_m = float(beam_width_m) - 2.0 * (
+        float(cover_m) + float(stirrup_diameter_m)
+    )
+
+    if available_width_m <= 0 or diameter_m <= 0:
+        return 0
+
+    max_bars = int(
+        (available_width_m + float(min_clear_spacing_m))
+        // (diameter_m + float(min_clear_spacing_m))
+    )
+
+    return max(max_bars, 0)
+
+
+def distribute_bars_in_layers(quantity, max_bars_per_layer):
+    quantity = int(quantity)
+    max_bars_per_layer = int(max_bars_per_layer)
+
+    if quantity <= 0 or max_bars_per_layer <= 0:
+        return []
+
+    layers = []
+    remaining = quantity
+
+    while remaining > 0:
+        bars_in_layer = min(remaining, max_bars_per_layer)
+        layers.append(bars_in_layer)
+        remaining -= bars_in_layer
+
+    return layers
+
+
+def format_layer_layout(layers):
+    if not layers:
+        return ""
+
+    return " + ".join(str(value) for value in layers)
+
+
+def suggest_rebar_layer_layout(
+    quantity,
+    diameter_mm,
+    beam_width_m,
+    cover_m=0.03,
+    stirrup_diameter_m=0.005,
+    min_clear_spacing_m=0.02,
+    max_layers=3,
+):
+    max_bars_per_layer = calculate_max_bars_per_layer(
+        diameter_mm=diameter_mm,
+        beam_width_m=beam_width_m,
+        cover_m=cover_m,
+        stirrup_diameter_m=stirrup_diameter_m,
+        min_clear_spacing_m=min_clear_spacing_m,
+    )
+
+    layers = distribute_bars_in_layers(
+        quantity=quantity,
+        max_bars_per_layer=max_bars_per_layer,
+    )
+
+    number_of_layers = len(layers)
+
+    if not layers:
+        status = "not_available"
+        message = "Não foi possível distribuir as barras em camadas."
+    elif number_of_layers > max_layers:
+        status = "not_ok"
+        message = "Número de camadas acima do limite preliminar adotado."
+    elif number_of_layers == 1:
+        status = "ok_single_layer"
+        message = "Armadura cabe em uma camada."
+    else:
+        status = "ok_multiple_layers"
+        message = "Armadura exige mais de uma camada."
+
+    return {
+        "status": status,
+        "number_of_layers": number_of_layers,
+        "max_bars_per_layer": max_bars_per_layer,
+        "bars_per_layer": layers,
+        "layout_label": format_layer_layout(layers),
+        "message": message,
+    }
