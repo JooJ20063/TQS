@@ -275,6 +275,15 @@ def validate_load_values(nodal_loads, distributed_loads) -> None:
             )
 
     for load in distributed_loads:
+        coordinate_system = getattr(load, "coordinate_system", "local")
+
+        if coordinate_system not in {"local", "global"}:
+            raise ValueError(
+                f"Carga distribuída no elemento {load.element} possui "
+                f"coordinate_system='{coordinate_system}' inválido. "
+                "Use 'local' ou 'global'."
+            )
+
         values = (
             load.qx,
             load.qy,
@@ -285,7 +294,6 @@ def validate_load_values(nodal_loads, distributed_loads) -> None:
             raise ValueError(
                 f"Carga distribuída no elemento {load.element} possui qx, qy e qz iguais a zero."
             )
-
 # ==========================================================
 # CASOS E COMBINAÇÕES
 # ==========================================================
