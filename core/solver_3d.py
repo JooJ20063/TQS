@@ -4,13 +4,9 @@ import numpy as np
 
 from core.model import StructuralModel, Element
 
-
 def solve_structure_3d(model: StructuralModel) -> dict:
     """
-    Resolve uma estrutura de pórtico espacial 3D.
-
-    Observação:
-    Este solver ainda está em implementação.
+    Resolve uma estrutura de pórtico espacial 3D pelo método da rigidez direta.
     """
 
     if model.analysis_type != "frame3d":
@@ -18,11 +14,48 @@ def solve_structure_3d(model: StructuralModel) -> dict:
             "solve_structure_3d deve ser usado apenas com analysis_type='frame3d'."
         )
 
-    raise NotImplementedError(
-        "Solver 3D ainda não implementado. "
-        "Este arquivo prepara o núcleo para o próximo passo."
-    )
+    K = assemble_global_stiffness_3d(model)
+    F = assemble_global_load_vector_3d(model)
 
+    free_dofs = model.free_dofs()
+    restrained_dofs = model.restrained_dofs()
+
+    if len(free_dofs) == 0:
+        raise ValueError("O modelo não possui graus de liberdade livres.")
+
+    K_ff = K[np.ix_(free_dofs, free_dofs)]
+    F_f = F[free_dofs]
+
+    d = np.zeros(model.number_of_dofs(), dtype=float)
+
+    try:
+        d_f = np.linalg.solve(K_ff, F_f)
+    except np.linalg.LinAlgError as error:
+        raise ValueError(
+            "Não foi possível resolver o sistema estrutural 3D. "
+            "A matriz de rigidez pode estar singular. "
+            "Verifique apoios, vínculos e estabilidade da estrutura."
+        ) from error
+
+    d[free_dofs] = d_f
+
+    reactions = K @ d - F
+    element_results = calculate_element_results_3d(model, d)
+
+    return {
+        "model_name": model.name,
+        "analysis_type": model.analysis_type,
+        "number_of_nodes": len(model.nodes),
+        "number_of_elements": len(model.elements),
+        "number_of_dofs": model.number_of_dofs(),
+        "free_dofs": free_dofs,
+        "restrained_dofs": restrained_dofs,
+        "displacements": format_nodal_displacements_3d(model, d),
+        "reactions": format_support_reactions_3d(model, reactions),
+        "elements": element_results,
+        "global_displacement_vector": d,
+        "global_reaction_vector": reactions,
+    }
 
 def assemble_global_stiffness_3d(model: StructuralModel) -> np.ndarray:
     """
@@ -312,6 +345,164 @@ def normalize_vector(vector: np.ndarray) -> np.ndarray:
 def assemble_global_load_vector_3d(model: StructuralModel) -> np.ndarray:
     """
     Monta o vetor global de cargas 3D.
+
+    Neste primeiro momento:
+    - cargas nodais 3D estão implementadas;
+    - cargas distribuídas 3D ainda não estão implementadas.
     """
 
-    return np.zeros(model.number_of_dofs(), dtype=float)
+    if model.analysis_type != "frame3d":
+        raise ValueError(
+            "assemble_global_load_vector_3d deve ser usado apenas com analysis_type='frame3d'."
+        )
+
+    F = np.zeros(model.number_of_dofs(), dtype=float)
+    dofs = model.dof_map()
+
+    for load in model.nodal_loads:
+        ux, uy, uz, rx, ry, rz = dofs[load.node]
+
+        F[ux] += load.fx
+        F[uy] += load.fy
+        F[uz] += load.fz
+        F[rx] += load.mx
+        F[ry] += load.my
+        F[rz] += load.mz
+
+    if model.distributed_loads:
+        raise NotImplementedError(
+            "Cargas distribuídas 3D ainda não foram implementadas no solver_3d."
+        )
+
+    return F
+
+
+def calculate_element_results_3d(
+    model: StructuralModel,
+    global_displacements: np.ndarray,
+) -> list[dict]:
+    """
+    Calcula deslocamentos locais e esforços locais finais de cada elemento 3D.
+
+    Nesta etapa, ainda não desconta cargas distribuídas equivalentes.
+    """
+
+    results: list[dict] = []
+
+    for element in model.elements:
+        element_dofs = model.element_dofs(element)
+        d_global_element = global_displacements[element_dofs]
+
+        T = transformation_matrix_3d(model, element)
+        k_local = element_local_stiffness_3d(model, element)
+
+        d_local = T @ d_global_element
+        f_local = k_local @ d_local
+
+        _, _, _, L, lx, ly, lz = element.geometry_3d(model)
+
+        results.append(
+            {
+                "id": element.id,
+                "node_i": element.node_i,
+                "node_j": element.node_j,
+                "length": L,
+                "direction_cosines": {
+                    "lx": lx,
+                    "ly": ly,
+                    "lz": lz,
+                },
+                "local_displacements": {
+                    "u_i": d_local[0],
+                    "v_i": d_local[1],
+                    "w_i": d_local[2],
+                    "rx_i": d_local[3],
+                    "ry_i": d_local[4],
+                    "rz_i": d_local[5],
+                    "u_j": d_local[6],
+                    "v_j": d_local[7],
+                    "w_j": d_local[8],
+                    "rx_j": d_local[9],
+                    "ry_j": d_local[10],
+                    "rz_j": d_local[11],
+                },
+                "local_end_forces": {
+                    "normal_i": f_local[0],
+                    "shear_y_i": f_local[1],
+                    "shear_z_i": f_local[2],
+                    "torsion_i": f_local[3],
+                    "moment_y_i": f_local[4],
+                    "moment_z_i": f_local[5],
+                    "normal_j": f_local[6],
+                    "shear_y_j": f_local[7],
+                    "shear_z_j": f_local[8],
+                    "torsion_j": f_local[9],
+                    "moment_y_j": f_local[10],
+                    "moment_z_j": f_local[11],
+                },
+            }
+        )
+
+    return results
+
+
+def format_nodal_displacements_3d(
+    model: StructuralModel,
+    global_displacements: np.ndarray,
+) -> list[dict]:
+    """
+    Organiza os deslocamentos 3D por nó.
+    """
+
+    dofs = model.dof_map()
+    output: list[dict] = []
+
+    for node_id in model.sorted_node_ids():
+        ux, uy, uz, rx, ry, rz = dofs[node_id]
+        node = model.get_node(node_id)
+
+        output.append(
+            {
+                "node": node_id,
+                "x": node.x,
+                "y": node.y,
+                "z": node.z,
+                "ux": global_displacements[ux],
+                "uy": global_displacements[uy],
+                "uz": global_displacements[uz],
+                "rx": global_displacements[rx],
+                "ry": global_displacements[ry],
+                "rz": global_displacements[rz],
+            }
+        )
+
+    return output
+
+
+def format_support_reactions_3d(
+    model: StructuralModel,
+    reactions: np.ndarray,
+) -> list[dict]:
+    """
+    Organiza as reações 3D apenas nos nós que possuem apoio.
+    """
+
+    dofs = model.dof_map()
+    output: list[dict] = []
+
+    for support in model.supports:
+        ux, uy, uz, rx, ry, rz = dofs[support.node]
+
+        output.append(
+            {
+                "node": support.node,
+                "fx": reactions[ux] if support.ux else 0.0,
+                "fy": reactions[uy] if support.uy else 0.0,
+                "fz": reactions[uz] if support.uz else 0.0,
+                "mx": reactions[rx] if support.rx else 0.0,
+                "my": reactions[ry] if support.ry else 0.0,
+                "mz": reactions[rz] if support.rz else 0.0,
+            }
+        )
+
+    return output
