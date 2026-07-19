@@ -41,6 +41,7 @@ def solve_structure_3d(model: StructuralModel) -> dict:
 
     reactions = K @ d - F
     element_results = calculate_element_results_3d(model, d)
+    equilibrium = check_global_equilibrium_3d(model, F, reactions)
 
     return {
         "model_name": model.name,
@@ -55,6 +56,7 @@ def solve_structure_3d(model: StructuralModel) -> dict:
         "elements": element_results,
         "global_displacement_vector": d,
         "global_reaction_vector": reactions,
+        "equilibrium": equilibrium,
     }
 
 def assemble_global_stiffness_3d(model: StructuralModel) -> np.ndarray:
@@ -571,3 +573,83 @@ def equivalent_nodal_load_local_3d(model: StructuralModel, load) -> np.ndarray:
     f[10] += qz * L**2 / 12.0
 
     return f
+
+def check_global_equilibrium_3d(
+    model: StructuralModel,
+    load_vector: np.ndarray,
+    reaction_vector: np.ndarray,
+) -> dict:
+    """
+    Verifica o equilíbrio global 3D.
+
+    Soma:
+    - forças aplicadas;
+    - reações de apoio;
+    - momentos aplicados;
+    - momentos gerados por r x F em relação à origem global.
+    """
+
+    dofs = model.dof_map()
+
+    total_forces = np.zeros(3, dtype=float)
+    total_moments = np.zeros(3, dtype=float)
+
+    for node_id in model.sorted_node_ids():
+        node = model.get_node(node_id)
+        ux, uy, uz, rx, ry, rz = dofs[node_id]
+
+        force = np.array(
+            [
+                load_vector[ux] + reaction_vector[ux],
+                load_vector[uy] + reaction_vector[uy],
+                load_vector[uz] + reaction_vector[uz],
+            ],
+            dtype=float,
+        )
+
+        moment = np.array(
+            [
+                load_vector[rx] + reaction_vector[rx],
+                load_vector[ry] + reaction_vector[ry],
+                load_vector[rz] + reaction_vector[rz],
+            ],
+            dtype=float,
+        )
+
+        position = np.array([node.x, node.y, node.z], dtype=float)
+
+        total_forces += force
+        total_moments += moment + np.cross(position, force)
+
+    reference = max(
+        1.0,
+        float(np.max(np.abs(load_vector))) if load_vector.size else 0.0,
+        float(np.max(np.abs(reaction_vector))) if reaction_vector.size else 0.0,
+    )
+
+    tolerance = 1e-6 * reference
+
+    force_norm = float(np.linalg.norm(total_forces))
+    moment_norm = float(np.linalg.norm(total_moments))
+
+    status = "OK"
+
+    if force_norm > tolerance or moment_norm > tolerance:
+        status = "NOT_OK"
+
+    return {
+        "sum_forces": {
+            "fx": total_forces[0],
+            "fy": total_forces[1],
+            "fz": total_forces[2],
+        },
+        "sum_moments": {
+            "mx": total_moments[0],
+            "my": total_moments[1],
+            "mz": total_moments[2],
+        },
+        "force_norm": force_norm,
+        "moment_norm": moment_norm,
+        "tolerance": tolerance,
+        "status": status,
+    }
