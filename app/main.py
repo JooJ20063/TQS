@@ -90,16 +90,16 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
 
 def print_analysis_summary_3d(results: dict) -> None:
     """
-    Imprime um resumo simples da análise 3D.
+    Imprime um resumo da análise 3D.
     """
 
     print()
     print("-" * 60)
     print("Resumo da análise 3D")
     print("-" * 60)
-    print(f"Nós:               {results['number_of_nodes']}")
-    print(f"Elementos:         {results['number_of_elements']}")
-    print(f"Graus de liberdade:{results['number_of_dofs']}")
+    print(f"Nós:                {results['number_of_nodes']}")
+    print(f"Elementos:          {results['number_of_elements']}")
+    print(f"Graus de liberdade: {results['number_of_dofs']}")
 
     displacement_entry = find_max_abs_result_entry(
         rows=results["displacements"],
@@ -109,6 +109,16 @@ def print_analysis_summary_3d(results: dict) -> None:
     rotation_entry = find_max_abs_result_entry(
         rows=results["displacements"],
         keys=("rx", "ry", "rz"),
+    )
+
+    reaction_force_entry = find_max_abs_result_entry(
+        rows=results["reactions"],
+        keys=("fx", "fy", "fz"),
+    )
+
+    reaction_moment_entry = find_max_abs_result_entry(
+        rows=results["reactions"],
+        keys=("mx", "my", "mz"),
     )
 
     print()
@@ -126,6 +136,91 @@ def print_analysis_summary_3d(results: dict) -> None:
             f"{rotation_entry['value']:.6e} rad no nó {rotation_entry['node']}"
         )
 
+    print()
+    print("Reações máximas:")
+
+    if reaction_force_entry:
+        print(
+            f"  |{reaction_force_entry['key']}|max = "
+            f"{reaction_force_entry['value']:.6e} kN no nó {reaction_force_entry['node']}"
+        )
+
+    if reaction_moment_entry:
+        print(
+            f"  |{reaction_moment_entry['key']}|max = "
+            f"{reaction_moment_entry['value']:.6e} kN.m no nó {reaction_moment_entry['node']}"
+        )
+
+    print()
+    print("Esforços internos máximos locais:")
+    print("  Observação: os esforços abaixo estão no sistema local de cada barra.")
+
+    print_max_element_force_3d(
+        results,
+        label="Normal",
+        keys=("normal_i", "normal_j"),
+        unit="kN",
+    )
+
+    print_max_element_force_3d(
+        results,
+        label="Cortante local y",
+        keys=("shear_y_i", "shear_y_j"),
+        unit="kN",
+    )
+
+    print_max_element_force_3d(
+        results,
+        label="Cortante local z",
+        keys=("shear_z_i", "shear_z_j"),
+        unit="kN",
+    )
+
+    print_max_element_force_3d(
+        results,
+        label="Torção local x",
+        keys=("torsion_i", "torsion_j"),
+        unit="kN.m",
+    )
+
+    print_max_element_force_3d(
+        results,
+        label="Momento local y",
+        keys=("moment_y_i", "moment_y_j"),
+        unit="kN.m",
+    )
+
+    print_max_element_force_3d(
+        results,
+        label="Momento local z",
+        keys=("moment_z_i", "moment_z_j"),
+        unit="kN.m",
+    )
+
+
+def print_max_element_force_3d(
+    results: dict,
+    label: str,
+    keys: tuple[str, ...],
+    unit: str,
+) -> None:
+    """
+    Imprime o maior esforço local de um grupo de chaves.
+    """
+
+    entry = find_max_abs_element_force_entry(
+        elements=results["elements"],
+        keys=keys,
+    )
+
+    if entry is None:
+        return
+
+    print(
+        f"  |{label}|max = {entry['value']:.6e} {unit} "
+        f"no elemento {entry['element']}, chave {entry['key']}"
+    )
+
 
 def find_max_abs_result_entry(rows, keys):
     """
@@ -140,6 +235,32 @@ def find_max_abs_result_entry(rows, keys):
 
             candidate = {
                 "node": row.get("node"),
+                "key": key,
+                "value": value,
+                "abs_value": abs(value),
+            }
+
+            if best is None or candidate["abs_value"] > best["abs_value"]:
+                best = candidate
+
+    return best
+
+
+def find_max_abs_element_force_entry(elements, keys):
+    """
+    Procura o maior valor absoluto nos esforços locais dos elementos 3D.
+    """
+
+    best = None
+
+    for element in elements:
+        local_end_forces = element.get("local_end_forces", {})
+
+        for key in keys:
+            value = float(local_end_forces.get(key, 0.0))
+
+            candidate = {
+                "element": element.get("id"),
                 "key": key,
                 "value": value,
                 "abs_value": abs(value),
