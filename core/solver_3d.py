@@ -29,9 +29,36 @@ def assemble_global_stiffness_3d(model: StructuralModel) -> np.ndarray:
     Monta a matriz de rigidez global 3D.
     """
 
-    n_dofs = model.number_of_dofs()
-    return np.zeros((n_dofs, n_dofs), dtype=float)
+    if model.analysis_type != "frame3d":
+        raise ValueError(
+            "assemble_global_stiffness_3d deve ser usado apenas com analysis_type='frame3d'."
+        )
 
+    n_dofs = model.number_of_dofs()
+    K = np.zeros((n_dofs, n_dofs), dtype=float)
+
+    for element in model.elements:
+        k_global = element_global_stiffness_3d(model, element)
+        element_dofs = model.element_dofs(element)
+
+        for local_i, global_i in enumerate(element_dofs):
+            for local_j, global_j in enumerate(element_dofs):
+                K[global_i, global_j] += k_global[local_i, local_j]
+
+    return K
+
+def element_global_stiffness_3d(
+    model: StructuralModel,
+    element: Element,
+) -> np.ndarray:
+    """
+    Calcula a matriz de rigidez do elemento 3D no sistema global.
+    """
+
+    k_local = element_local_stiffness_3d(model, element)
+    T = transformation_matrix_3d(model, element)
+
+    return T.T @ k_local @ T
 
 def element_local_stiffness_3d(
     model: StructuralModel,
@@ -193,11 +220,94 @@ def transformation_matrix_3d(
     """
     Matriz de transformação 3D 12x12.
 
-    Ainda será implementada no próximo commit deste PR.
+    Convenção:
+    d_local = T @ d_global
+
+    A matriz usa os eixos locais:
+    - x local: eixo da barra, do nó i para o nó j;
+    - y local: eixo auxiliar perpendicular;
+    - z local: completa o sistema ortonormal de mão direita.
     """
 
-    return np.eye(12, dtype=float)
+    local_axes = local_axis_matrix_3d(model, element)
 
+    T = np.zeros((12, 12), dtype=float)
+
+    # Nó i - translações
+    T[0:3, 0:3] = local_axes
+
+    # Nó i - rotações
+    T[3:6, 3:6] = local_axes
+
+    # Nó j - translações
+    T[6:9, 6:9] = local_axes
+
+    # Nó j - rotações
+    T[9:12, 9:12] = local_axes
+
+    return T
+
+def local_axis_matrix_3d(
+    model: StructuralModel,
+    element: Element,
+) -> np.ndarray:
+    """
+    Retorna a matriz 3x3 dos eixos locais do elemento.
+
+    Cada linha representa um eixo local escrito em coordenadas globais:
+
+    linha 0: eixo x local
+    linha 1: eixo y local
+    linha 2: eixo z local
+    """
+
+    _, _, _, _, lx, ly, lz = element.geometry_3d(model)
+
+    x_axis = np.array([lx, ly, lz], dtype=float)
+    x_axis = normalize_vector(x_axis)
+
+    reference = choose_reference_vector(x_axis)
+
+    z_axis = np.cross(x_axis, reference)
+    z_axis = normalize_vector(z_axis)
+
+    y_axis = np.cross(z_axis, x_axis)
+    y_axis = normalize_vector(y_axis)
+
+    return np.array(
+        [
+            x_axis,
+            y_axis,
+            z_axis,
+        ],
+        dtype=float,
+    )
+
+
+def choose_reference_vector(x_axis: np.ndarray) -> np.ndarray:
+    """
+    Escolhe um vetor de referência que não seja paralelo ao eixo local x.
+    """
+
+    global_z = np.array([0.0, 0.0, 1.0], dtype=float)
+
+    if abs(np.dot(x_axis, global_z)) < 0.90:
+        return global_z
+
+    return np.array([0.0, 1.0, 0.0], dtype=float)
+
+
+def normalize_vector(vector: np.ndarray) -> np.ndarray:
+    """
+    Normaliza um vetor.
+    """
+
+    norm = np.linalg.norm(vector)
+
+    if norm <= 0:
+        raise ValueError("Não é possível normalizar vetor nulo.")
+
+    return vector / norm
 
 def assemble_global_load_vector_3d(model: StructuralModel) -> np.ndarray:
     """
