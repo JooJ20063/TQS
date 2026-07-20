@@ -200,3 +200,35 @@ jobs:
 
           print("Frame3D checks passed.")
           PY
+      - name: Verify common result accessors
+        run: |
+          python - <<'PY'
+          import json
+
+          from core.result_accessors import create_common_result_summary
+
+          def read(path):
+              with open(path, "r", encoding="utf-8") as file:
+                  return json.load(file)
+
+          frame2d = read("results/ci_portico_combinacoes/ELU_02/resultados.json")
+          frame3d = read("results/ci_viga_3d_peso_proprio/resultados.json")
+
+          summary_2d = create_common_result_summary(frame2d)
+          summary_3d = create_common_result_summary(frame3d)
+
+          assert summary_2d["analysis_type"] == "frame2d"
+          assert summary_3d["analysis_type"] == "frame3d"
+
+          assert summary_2d["max_translation"] is not None
+          assert summary_2d["max_rotation"] is not None
+          assert summary_2d["max_element_forces"]["moment"] is not None
+          assert summary_2d["equilibrium_status"] == "OK"
+
+          assert summary_3d["max_translation"] is not None
+          assert summary_3d["max_rotation"] is not None
+          assert summary_3d["max_element_forces"]["moment_z"] is not None
+          assert summary_3d["equilibrium_status"] == "OK"
+
+          print("Common result accessors passed.")
+          PY
