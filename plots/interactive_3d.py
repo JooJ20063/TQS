@@ -35,11 +35,18 @@ def generate_interactive_structure_3d(model, output_path: Path) -> None:
 
     fig = go.Figure()
 
+    clean_mode = _is_large_model(model)
+
     _add_elements_trace(fig, model)
-    _add_nodes_trace(fig, model)
+    _add_nodes_trace(fig, model, show_labels=not clean_mode)
     _add_supports_trace(fig, model)
-    _add_nodal_loads_trace(fig, model)
-    _add_distributed_loads_trace(fig, model)
+    _add_nodal_loads_trace(fig, model, visible_by_default=not clean_mode)
+    _add_distributed_loads_trace(
+        fig,
+        model,
+        visible_by_default=not clean_mode,
+        arrows_per_element=2 if clean_mode else 5,
+    )
 
     fig.update_layout(
         title="Estrutura 3D Interativa",
@@ -95,7 +102,7 @@ def _add_elements_trace(fig: go.Figure, model) -> None:
     )
 
 
-def _add_nodes_trace(fig: go.Figure, model) -> None:
+def _add_nodes_trace(fig: go.Figure, model, show_labels: bool = True) -> None:
     """
     Adiciona nós como marcadores 3D.
     """
@@ -107,12 +114,14 @@ def _add_nodes_trace(fig: go.Figure, model) -> None:
     labels = [f"N{node.id}" for node in model.nodes]
     hover_text = [f"Nó {node.id}<br>x={node.x}<br>y={node.y}<br>z={node.z}" for node in model.nodes]
 
+    mode = "markers+text" if show_labels else "markers"
+
     fig.add_trace(
         go.Scatter3d(
             x=x_vals,
             y=y_vals,
             z=z_vals,
-            mode="markers+text",
+            mode = mode,
             name="Nós 3D",
             marker=dict(size=5),
             text=labels,
@@ -165,7 +174,7 @@ def _add_supports_trace(fig: go.Figure, model) -> None:
     )
 
 
-def _add_nodal_loads_trace(fig: go.Figure, model) -> None:
+def _add_nodal_loads_trace(fig: go.Figure, model, visible_by_default: bool = True) -> None:
     """
     Adiciona cargas nodais translacionais como setas simples (segmentos de reta).
     """
@@ -228,11 +237,12 @@ def _add_nodal_loads_trace(fig: go.Figure, model) -> None:
                 line=dict(width=5),
                 hovertext=texts,
                 hoverinfo="text",
+                visible=True if visible_by_default else "legendonly",
             )
         )
 
 
-def _add_distributed_loads_trace(fig: go.Figure, model) -> None:
+def _add_distributed_loads_trace(fig: go.Figure, model, visible_by_default: bool = True, arrows_per_element: int = 5,) -> None:
     """
     Adiciona cargas distribuídas 3D.
 
@@ -280,8 +290,16 @@ def _add_distributed_loads_trace(fig: go.Figure, model) -> None:
         node_i = model.node_by_id(element.node_i)
         node_j = model.node_by_id(element.node_j)
 
+        if arrows_per_element <= 1:
+            positions = [0.5]
+        else:
+            positions = [
+                0.15 + i * (0.70 / (arrows_per_element - 1))
+                for i in range(arrows_per_element)
+            ]
+
         # 5 posições ao longo do elemento
-        for t in (0.15, 0.32, 0.50, 0.68, 0.85):
+        for t in positions:
             px = node_i.x + t * (node_j.x - node_i.x)
             py = node_i.y + t * (node_j.y - node_i.y)
             pz = node_i.z + t * (node_j.z - node_i.z)
@@ -314,6 +332,7 @@ def _add_distributed_loads_trace(fig: go.Figure, model) -> None:
                 line=dict(width=4, dash="dot"),
                 hovertext=texts,
                 hoverinfo="text",
+                visible=True if visible_by_default else "legendonly",
             )
         )
 
@@ -333,3 +352,18 @@ def _characteristic_length(model) -> float:
 
     value = math.sqrt(dx**2 + dy**2 + dz**2)
     return value if value > 0.0 else 1.0
+
+def _is_large_model(model) -> bool:
+    """
+    Decide se o modelo deve usar modo visual limpo por padrão.
+    """
+
+    complexity = (
+        len(getattr(model, "nodes", []))
+        + len(getattr(model, "elements", []))
+        + len(getattr(model, "supports", []))
+        + len(getattr(model, "nodal_loads", []))
+        + len(getattr(model, "distributed_loads", []))
+    )
+
+    return complexity > 70

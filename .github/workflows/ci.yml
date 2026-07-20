@@ -178,6 +178,7 @@ jobs:
           test -f results/ci_viga_3d_peso_proprio/estrutura_3d.png
           test -f results/ci_viga_3d_peso_proprio/deformada_3d.png
           test -f results/ci_portico_3d_simples/resumo_grafico_3d.txt
+          test -f results/ci_viga_3d_console/estrutura_3d_interativa.html
 
           python - <<'PY'
           import json
@@ -288,4 +289,19 @@ jobs:
           assert "cargas distribuídas 3D qx, qy e qz" in graphics_summary
 
           print("Common result accessors passed.")
+          PY
+
+      - name: Verify frame3d interactive html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          html_path = Path("results/ci_viga_3d_console/estrutura_3d_interativa.html")
+          assert html_path.exists()
+
+          content = html_path.read_text(encoding="utf-8")
+          assert "plotly" in content.lower()
+          assert "Estrutura 3D Interativa" in content
+
+          print("Interactive HTML check passed.")
           PY
