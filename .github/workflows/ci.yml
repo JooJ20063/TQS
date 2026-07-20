@@ -180,6 +180,10 @@ jobs:
           test -f results/ci_portico_3d_simples/resumo_grafico_3d.txt
           test -f results/ci_viga_3d_console/estrutura_3d_interativa.html
 
+          test -f results/ci_viga_3d_console/envoltoria_3d.json
+          test -f results/ci_viga_3d_console/envoltoria_3d.csv
+          test -f results/ci_viga_3d_console/resumo_envoltoria_3d.txt
+
           python - <<'PY'
           import json
           import math
