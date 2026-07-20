@@ -84,6 +84,9 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.envelope_report_3d import write_envelope_3d_report_txt
     from core.displacement_report_3d import write_displacement_summary_3d_txt
     from core.displacement_csv_3d import write_displacements_3d_csv
+    from core.beam_design_3d import design_frame3d_beams_preliminary
+    from core.beam_design_csv_3d import write_beam_design_3d_csv
+    from core.beam_design_report_3d import write_beam_design_3d_report_txt
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -128,6 +131,21 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     write_displacements_3d_csv(
         results,
         Path(output_dir) / "deslocamentos_3d.csv",
+    )
+
+    beam_design_3d = design_frame3d_beams_preliminary(
+        model=model,
+        envelope=envelope,
+    )
+
+    write_beam_design_3d_csv(
+        beam_design_3d,
+        Path(output_dir) / "dimensionamento_vigas_3d.csv",
+    )
+
+    write_beam_design_3d_report_txt(
+        beam_design_3d,
+        Path(output_dir) / "resumo_dimensionamento_vigas_3d.txt",
     )
 
     print("[5/5] Gerando resultados gráficos 3D...")
