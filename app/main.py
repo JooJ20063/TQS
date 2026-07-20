@@ -77,6 +77,7 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.solver_3d import solve_structure_3d
     from io_module.results_writer import write_results_json
     from core.deflection import write_preliminary_deflection_summary_txt
+    from plots.diagrams_3d import generate_all_diagrams_3d
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -96,7 +97,9 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
 
     write_results_json(results, output_dir / "resultados.json")
 
-    print("[5/5] Diagramas 3D ainda não implementados.")
+    print("[5/5] Gerando resultados gráficos 3D...")
+
+    generate_all_diagrams_3d(model, results, output_dir)
 
     return results
 

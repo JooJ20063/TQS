@@ -1,0 +1,301 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from core.model import StructuralModel
+
+
+def generate_all_diagrams_3d(
+    model: StructuralModel,
+    results: dict[str, Any],
+    output_dir: str | Path,
+) -> None:
+    """
+    Gera todos os diagramas 3D disponíveis.
+
+    Nesta etapa inicial:
+    - estrutura_3d.png;
+    - deformada_3d.png.
+    """
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    generate_structure_plot_3d(
+        model=model,
+        output_path=output_dir / "estrutura_3d.png",
+    )
+
+    generate_deformed_shape_plot_3d(
+        model=model,
+        results=results,
+        output_path=output_dir / "deformada_3d.png",
+    )
+
+
+def generate_structure_plot_3d(
+    model: StructuralModel,
+    output_path: str | Path,
+) -> None:
+    """
+    Gera a visualização da estrutura tridimensional indeformada.
+    """
+
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    all_points: list[np.ndarray] = []
+
+    for element in model.elements:
+        node_i = model.get_node(element.node_i)
+        node_j = model.get_node(element.node_j)
+
+        xi, yi, zi = node_i.x, node_i.y, node_i.z
+        xj, yj, zj = node_j.x, node_j.y, node_j.z
+
+        ax.plot(
+            [xi, xj],
+            [yi, yj],
+            [zi, zj],
+            linewidth=2.0,
+            marker="o",
+        )
+
+        all_points.append(np.array([xi, yi, zi], dtype=float))
+        all_points.append(np.array([xj, yj, zj], dtype=float))
+
+        xm = 0.5 * (xi + xj)
+        ym = 0.5 * (yi + yj)
+        zm = 0.5 * (zi + zj)
+
+        ax.text(xm, ym, zm, f"E{element.id}", fontsize=8)
+
+    for node in model.nodes:
+        ax.text(node.x, node.y, node.z, f"N{node.id}", fontsize=8)
+
+    ax.set_title("Estrutura 3D")
+    configure_3d_axes(ax)
+    set_equal_3d_axes(ax, all_points)
+
+    save_figure(fig, output_path)
+
+
+def generate_deformed_shape_plot_3d(
+    model: StructuralModel,
+    results: dict[str, Any],
+    output_path: str | Path,
+    scale_factor: float | None = None,
+) -> None:
+    """
+    Gera a visualização da deformada tridimensional.
+
+    A estrutura original é desenhada junto da deformada para comparação.
+    """
+
+    displacements = map_displacements_by_node(results)
+
+    if scale_factor is None:
+        scale_factor = calculate_deformation_scale_factor(model, results)
+
+    fig = plt.figure(figsize=(9, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    all_points: list[np.ndarray] = []
+
+    for element in model.elements:
+        node_i = model.get_node(element.node_i)
+        node_j = model.get_node(element.node_j)
+
+        original_i = np.array([node_i.x, node_i.y, node_i.z], dtype=float)
+        original_j = np.array([node_j.x, node_j.y, node_j.z], dtype=float)
+
+        disp_i = get_node_displacement_vector(displacements, node_i.id)
+        disp_j = get_node_displacement_vector(displacements, node_j.id)
+
+        deformed_i = original_i + scale_factor * disp_i
+        deformed_j = original_j + scale_factor * disp_j
+
+        ax.plot(
+            [original_i[0], original_j[0]],
+            [original_i[1], original_j[1]],
+            [original_i[2], original_j[2]],
+            linestyle="--",
+            linewidth=1.0,
+            alpha=0.5,
+        )
+
+        ax.plot(
+            [deformed_i[0], deformed_j[0]],
+            [deformed_i[1], deformed_j[1]],
+            [deformed_i[2], deformed_j[2]],
+            linewidth=2.0,
+            marker="o",
+        )
+
+        all_points.extend([original_i, original_j, deformed_i, deformed_j])
+
+    ax.set_title(f"Deformada 3D — fator {scale_factor:.3g}")
+    configure_3d_axes(ax)
+    set_equal_3d_axes(ax, all_points)
+
+    save_figure(fig, output_path)
+
+
+def map_displacements_by_node(results: dict[str, Any]) -> dict[int, dict[str, float]]:
+    """
+    Cria um mapa:
+    node_id -> deslocamentos do nó.
+    """
+
+    output: dict[int, dict[str, float]] = {}
+
+    for row in results.get("displacements", []):
+        node_id = int(row["node"])
+
+        output[node_id] = {
+            "ux": float(row.get("ux", 0.0)),
+            "uy": float(row.get("uy", 0.0)),
+            "uz": float(row.get("uz", 0.0)),
+        }
+
+    return output
+
+
+def get_node_displacement_vector(
+    displacements: dict[int, dict[str, float]],
+    node_id: int,
+) -> np.ndarray:
+    """
+    Retorna o vetor de deslocamento translacional de um nó.
+    """
+
+    row = displacements.get(node_id, {})
+
+    return np.array(
+        [
+            float(row.get("ux", 0.0)),
+            float(row.get("uy", 0.0)),
+            float(row.get("uz", 0.0)),
+        ],
+        dtype=float,
+    )
+
+
+def calculate_deformation_scale_factor(
+    model: StructuralModel,
+    results: dict[str, Any],
+) -> float:
+    """
+    Calcula um fator automático para visualização da deformada.
+
+    A ideia é amplificar a deformada para algo visível, sem distorcer demais.
+    """
+
+    structure_size = calculate_structure_size(model)
+    max_displacement = calculate_max_translation(results)
+
+    if structure_size <= 0.0 or max_displacement <= 0.0:
+        return 1.0
+
+    target_visual_displacement = 0.10 * structure_size
+
+    return target_visual_displacement / max_displacement
+
+
+def calculate_structure_size(model: StructuralModel) -> float:
+    """
+    Calcula uma dimensão característica da estrutura.
+    """
+
+    points = [
+        np.array([node.x, node.y, node.z], dtype=float)
+        for node in model.nodes
+    ]
+
+    if not points:
+        return 1.0
+
+    coordinates = np.array(points, dtype=float)
+
+    ranges = np.ptp(coordinates, axis=0)
+    size = float(np.max(ranges))
+
+    if size <= 0.0:
+        return 1.0
+
+    return size
+
+
+def calculate_max_translation(results: dict[str, Any]) -> float:
+    """
+    Retorna o maior deslocamento translacional absoluto.
+    """
+
+    max_value = 0.0
+
+    for row in results.get("displacements", []):
+        ux = float(row.get("ux", 0.0))
+        uy = float(row.get("uy", 0.0))
+        uz = float(row.get("uz", 0.0))
+
+        value = float(np.linalg.norm([ux, uy, uz]))
+        max_value = max(max_value, value)
+
+    return max_value
+
+
+def configure_3d_axes(ax) -> None:
+    """
+    Configura rótulos e grade dos eixos 3D.
+    """
+
+    ax.set_xlabel("X [m]")
+    ax.set_ylabel("Y [m]")
+    ax.set_zlabel("Z [m]")
+    ax.grid(True)
+    ax.view_init(elev=25, azim=-60)
+
+
+def set_equal_3d_axes(ax, points: list[np.ndarray]) -> None:
+    """
+    Ajusta os eixos 3D para manter escala visual equivalente em X, Y e Z.
+    """
+
+    if not points:
+        return
+
+    coordinates = np.array(points, dtype=float)
+
+    min_values = coordinates.min(axis=0)
+    max_values = coordinates.max(axis=0)
+
+    centers = 0.5 * (min_values + max_values)
+    ranges = max_values - min_values
+
+    max_range = float(np.max(ranges))
+
+    if max_range <= 0.0:
+        max_range = 1.0
+
+    half_range = 0.55 * max_range
+
+    ax.set_xlim(centers[0] - half_range, centers[0] + half_range)
+    ax.set_ylim(centers[1] - half_range, centers[1] + half_range)
+    ax.set_zlim(centers[2] - half_range, centers[2] + half_range)
+
+
+def save_figure(fig, output_path: str | Path) -> None:
+    """
+    Salva e fecha a figura.
+    """
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=200)
+    plt.close(fig)
