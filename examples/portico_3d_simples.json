@@ -1,0 +1,236 @@
+{
+    "name": "portico_3d_simples",
+    "analysis_type": "frame3d",
+
+    "nodes": [
+        {
+            "id": 1,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        },
+        {
+            "id": 2,
+            "x": 4.0,
+            "y": 0.0,
+            "z": 0.0
+        },
+        {
+            "id": 3,
+            "x": 4.0,
+            "y": 3.0,
+            "z": 0.0
+        },
+        {
+            "id": 4,
+            "x": 0.0,
+            "y": 3.0,
+            "z": 0.0
+        },
+
+        {
+            "id": 5,
+            "x": 0.0,
+            "y": 0.0,
+            "z": 3.0
+        },
+        {
+            "id": 6,
+            "x": 4.0,
+            "y": 0.0,
+            "z": 3.0
+        },
+        {
+            "id": 7,
+            "x": 4.0,
+            "y": 3.0,
+            "z": 3.0
+        },
+        {
+            "id": 8,
+            "x": 0.0,
+            "y": 3.0,
+            "z": 3.0
+        }
+    ],
+
+    "materials": [
+        {
+            "id": 1,
+            "name": "concreto_C25",
+            "E": 25000000.0,
+            "gamma": 25.0,
+            "poisson": 0.2
+        }
+    ],
+
+    "sections": [
+        {
+            "id": 1,
+            "name": "pilar_30x30",
+            "type": "rectangular",
+            "b": 0.30,
+            "h": 0.30
+        },
+        {
+            "id": 2,
+            "name": "viga_20x40",
+            "type": "rectangular",
+            "b": 0.20,
+            "h": 0.40
+        }
+    ],
+
+    "elements": [
+        {
+            "id": 1,
+            "node_i": 1,
+            "node_j": 5,
+            "material": 1,
+            "section": 1,
+            "kind": "frame3d"
+        },
+        {
+            "id": 2,
+            "node_i": 2,
+            "node_j": 6,
+            "material": 1,
+            "section": 1,
+            "kind": "frame3d"
+        },
+        {
+            "id": 3,
+            "node_i": 3,
+            "node_j": 7,
+            "material": 1,
+            "section": 1,
+            "kind": "frame3d"
+        },
+        {
+            "id": 4,
+            "node_i": 4,
+            "node_j": 8,
+            "material": 1,
+            "section": 1,
+            "kind": "frame3d"
+        },
+
+        {
+            "id": 5,
+            "node_i": 5,
+            "node_j": 6,
+            "material": 1,
+            "section": 2,
+            "kind": "frame3d"
+        },
+        {
+            "id": 6,
+            "node_i": 6,
+            "node_j": 7,
+            "material": 1,
+            "section": 2,
+            "kind": "frame3d"
+        },
+        {
+            "id": 7,
+            "node_i": 7,
+            "node_j": 8,
+            "material": 1,
+            "section": 2,
+            "kind": "frame3d"
+        },
+        {
+            "id": 8,
+            "node_i": 8,
+            "node_j": 5,
+            "material": 1,
+            "section": 2,
+            "kind": "frame3d"
+        }
+    ],
+
+    "supports": [
+        {
+            "node": 1,
+            "ux": true,
+            "uy": true,
+            "uz": true,
+            "rx": true,
+            "ry": true,
+            "rz": true
+        },
+        {
+            "node": 2,
+            "ux": true,
+            "uy": true,
+            "uz": true,
+            "rx": true,
+            "ry": true,
+            "rz": true
+        },
+        {
+            "node": 3,
+            "ux": true,
+            "uy": true,
+            "uz": true,
+            "rx": true,
+            "ry": true,
+            "rz": true
+        },
+        {
+            "node": 4,
+            "ux": true,
+            "uy": true,
+            "uz": true,
+            "rx": true,
+            "ry": true,
+            "rz": true
+        }
+    ],
+
+    "nodal_loads": [
+        {
+            "node": 5,
+            "fz": -20.0
+        },
+        {
+            "node": 6,
+            "fz": -20.0,
+            "fx": 5.0
+        },
+        {
+            "node": 7,
+            "fz": -20.0,
+            "fx": 5.0,
+            "fy": 3.0
+        },
+        {
+            "node": 8,
+            "fz": -20.0,
+            "fy": 3.0
+        }
+    ],
+
+    "distributed_loads": [
+        {
+            "element": 5,
+            "coordinate_system": "global",
+            "qz": -5.0
+        },
+        {
+            "element": 6,
+            "coordinate_system": "global",
+            "qz": -5.0
+        },
+        {
+            "element": 7,
+            "coordinate_system": "global",
+            "qz": -5.0
+        },
+        {
+            "element": 8,
+            "coordinate_system": "global",
+            "qz": -5.0
+        }
+    ]
+}
