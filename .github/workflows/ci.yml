@@ -86,6 +86,30 @@ jobs:
         run: |
           python app/main.py examples/viga_3d_peso_proprio.json -o results/ci_viga_3d_peso_proprio
 
+      - name: Run Estruturalis - frame3d console
+        run: |
+          python app/main.py examples/viga_3d_console.json -o results/ci_viga_3d_console
+
+      - name: Run Estruturalis - frame3d distributed load
+        run: |
+          python app/main.py examples/viga_3d_console_q.json -o results/ci_viga_3d_console_q
+
+      - name: Run Estruturalis - frame3d global y
+        run: |
+          python app/main.py examples/viga_3d_console_y.json -o results/ci_viga_3d_console_y
+
+      - name: Run Estruturalis - frame3d inclined
+        run: |
+          python app/main.py examples/viga_3d_console_inclinada.json -o results/ci_viga_3d_console_inclinada
+
+      - name: Run Estruturalis - frame3d self weight
+        run: |
+          python app/main.py examples/viga_3d_peso_proprio.json -o results/ci_viga_3d_peso_proprio
+
+      - name: Run Estruturalis - simple frame3d portal
+        run: |
+          python app/main.py examples/portico_3d_simples.json -o results/ci_portico_3d_simples
+
       - name: Verify beam outputs
         run: |
           test -f results/ci_viga_carga_central/resultados.json
