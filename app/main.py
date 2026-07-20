@@ -33,6 +33,7 @@ def run_single_analysis_2d(model, output_dir: Path) -> dict:
     from core.postprocess import enrich_results, print_analysis_summary
     from io_module.results_writer import write_results_json
     from plots.diagrams import generate_all_diagrams
+    from core.deflection import write_preliminary_deflection_summary_txt
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -43,6 +44,12 @@ def run_single_analysis_2d(model, output_dir: Path) -> dict:
 
     results = enrich_results(model, results)
     print_analysis_summary(results)
+
+    write_preliminary_deflection_summary_txt(
+        model=model,
+        results=results,
+        file_path=output_dir / "resumo_flechas.txt",
+    )
 
     print("[4/5] Salvando resultados...")
 
@@ -69,6 +76,7 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.validation import validate_model
     from core.solver_3d import solve_structure_3d
     from io_module.results_writer import write_results_json
+    from core.deflection import write_preliminary_deflection_summary_txt
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -78,6 +86,11 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     results = solve_structure_3d(model)
 
     print_analysis_summary_3d(results)
+    write_preliminary_deflection_summary_txt(
+        model=model,
+        results=results,
+        file_path=output_dir / "resumo_flechas.txt",
+    )
 
     print("[4/5] Salvando resultados...")
 
