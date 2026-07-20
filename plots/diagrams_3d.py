@@ -76,6 +76,8 @@ def generate_structure_plot_3d(
 
     for node in model.nodes:
         ax.text(node.x, node.y, node.z, f"N{node.id}", fontsize=8)
+        plot_supports_3d(ax, model)
+        add_legend_if_needed(ax)
 
     ax.set_title("Estrutura 3D")
     configure_3d_axes(ax)
@@ -137,6 +139,9 @@ def generate_deformed_shape_plot_3d(
         )
 
         all_points.extend([original_i, original_j, deformed_i, deformed_j])
+
+    plot_supports_3d(ax, model)
+    add_legend_if_needed(ax)
 
     ax.set_title(f"Deformada 3D — fator {scale_factor:.3g}")
     configure_3d_axes(ax)
@@ -286,6 +291,104 @@ def set_equal_3d_axes(ax, points: list[np.ndarray]) -> None:
     ax.set_xlim(centers[0] - half_range, centers[0] + half_range)
     ax.set_ylim(centers[1] - half_range, centers[1] + half_range)
     ax.set_zlim(centers[2] - half_range, centers[2] + half_range)
+
+def plot_supports_3d(ax, model: StructuralModel) -> None:
+    """
+    Desenha apoios no gráfico 3D.
+
+    Convenção visual preliminar:
+    - apoio totalmente engastado: marcador quadrado;
+    - apoio parcial: marcador triangular;
+    - texto mostra os graus de liberdade restringidos.
+    """
+
+    for support in model.supports:
+        node = model.get_node(support.node)
+
+        restrained_labels = get_restrained_support_labels(support)
+        label_text = ",".join(restrained_labels)
+
+        if is_fully_fixed_support_3d(support):
+            ax.scatter(
+                [node.x],
+                [node.y],
+                [node.z],
+                marker="s",
+                s=80,
+                label="Engaste 3D",
+            )
+            ax.text(
+                node.x,
+                node.y,
+                node.z,
+                f" Apoio N{node.id}\n engaste",
+                fontsize=8,
+            )
+        else:
+            ax.scatter(
+                [node.x],
+                [node.y],
+                [node.z],
+                marker="^",
+                s=70,
+                label="Apoio parcial 3D",
+            )
+            ax.text(
+                node.x,
+                node.y,
+                node.z,
+                f" Apoio N{node.id}\n {label_text}",
+                fontsize=8,
+            )
+
+
+def get_restrained_support_labels(support) -> list[str]:
+    """
+    Retorna os graus de liberdade restringidos por um apoio.
+    """
+
+    labels = []
+
+    for name in ("ux", "uy", "uz", "rx", "ry", "rz"):
+        if getattr(support, name, False):
+            labels.append(name)
+
+    return labels
+
+
+def is_fully_fixed_support_3d(support) -> bool:
+    """
+    Verifica se o apoio restringe os 6 graus de liberdade 3D.
+    """
+
+    return all(
+        getattr(support, name, False)
+        for name in ("ux", "uy", "uz", "rx", "ry", "rz")
+    )
+
+
+def add_legend_if_needed(ax) -> None:
+    """
+    Adiciona legenda removendo rótulos duplicados.
+    """
+
+    handles, labels = ax.get_legend_handles_labels()
+
+    if not handles:
+        return
+
+    unique = {}
+
+    for handle, label in zip(handles, labels):
+        if label not in unique:
+            unique[label] = handle
+
+    ax.legend(
+        unique.values(),
+        unique.keys(),
+        loc="best",
+        fontsize=8,
+    )
 
 
 def save_figure(fig, output_path: str | Path) -> None:
