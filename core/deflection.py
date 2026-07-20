@@ -132,3 +132,77 @@ def find_max_abs_vertical_displacement(
             best = candidate
 
     return best
+
+
+from pathlib import Path
+
+
+def write_preliminary_deflection_summary_txt(
+    model: StructuralModel,
+    results: dict[str, Any],
+    file_path: str | Path,
+    limit_ratio: float = 250.0,
+) -> None:
+    """
+    Escreve um relatório TXT da verificação preliminar de flecha/deslocamento.
+    """
+
+    check = check_preliminary_deflection(
+        model=model,
+        results=results,
+        limit_ratio=limit_ratio,
+    )
+
+    text = format_preliminary_deflection_summary(check)
+
+    file_path = Path(file_path)
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with file_path.open("w", encoding="utf-8") as file:
+        file.write(text)
+
+
+def format_preliminary_deflection_summary(check: dict[str, Any]) -> str:
+    """
+    Formata o resultado da verificação preliminar de flecha.
+    """
+
+    lines: list[str] = []
+
+    lines.append("RESUMO PRELIMINAR DE FLECHAS / DESLOCAMENTOS")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append(f"Tipo de análise: {check['analysis_type']}")
+    lines.append(f"Direção vertical considerada: {check['vertical_key']}")
+    lines.append(f"Maior vão considerado: {check['max_span_m']:.6f} m")
+    lines.append(f"Limite adotado: L/{check['limit_ratio']:.0f}")
+    lines.append(f"Deslocamento limite: {check['limit_m']:.6e} m")
+    lines.append("")
+
+    max_displacement = check.get("max_displacement")
+
+    if max_displacement is None:
+        lines.append("Deslocamento máximo: não disponível")
+    else:
+        lines.append("Deslocamento vertical máximo:")
+        lines.append(f"  Nó: {max_displacement['node']}")
+        lines.append(f"  Chave: {max_displacement['key']}")
+        lines.append(f"  Valor: {max_displacement['value']:.6e} m")
+        lines.append(f"  Valor absoluto: {max_displacement['abs_value']:.6e} m")
+
+    lines.append("")
+
+    utilization = check.get("utilization")
+
+    if utilization is None:
+        lines.append("Utilização: não disponível")
+    else:
+        lines.append(f"Utilização: {utilization:.6f}")
+
+    lines.append(f"Status: {check['status']}")
+    lines.append("")
+    lines.append("Observação:")
+    lines.append(str(check["note"]))
+    lines.append("")
+
+    return "\n".join(lines)
