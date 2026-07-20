@@ -26,12 +26,13 @@ def generate_all_diagrams_3d(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    load_scale = calculate_nodal_load_scale_factor(model)
+    nodal_load_scale = calculate_nodal_load_scale_factor(model)
+    distributed_load_scale = calculate_distributed_load_scale_factor(model)
 
     generate_structure_plot_3d(
         model=model,
         output_path=output_dir / "estrutura_3d.png",
-        load_scale=load_scale,
+        load_scale=nodal_load_scale,
     )
 
     generate_deformed_shape_plot_3d(
@@ -44,7 +45,8 @@ def generate_all_diagrams_3d(
         model=model,
         results=results,
         output_path=output_dir / "resumo_grafico_3d.txt",
-        load_scale=load_scale,
+        nodal_load_scale=nodal_load_scale,
+        distributed_load_scale=distributed_load_scale,
     )
 
 def generate_structure_plot_3d(
@@ -89,6 +91,8 @@ def generate_structure_plot_3d(
         ax.text(node.x, node.y, node.z, f"N{node.id}", fontsize=8)
         plot_supports_3d(ax, model)
         plot_nodal_loads_3d(ax, model, load_scale=load_scale)
+        distributed_load_scale = calculate_distributed_load_scale_factor(model)
+        plot_distributed_loads_3d(ax, model,    load_scale=distributed_load_scale)
         add_legend_if_needed(ax)
 
     ax.set_title("Estrutura 3D")
@@ -535,7 +539,8 @@ def write_graphics_summary_3d(
     model: StructuralModel,
     results: dict[str, Any],
     output_path: str | Path,
-    load_scale: float,
+    nodal_load_scale: float,
+    distributed_load_scale: float,
 ) -> None:
     """
     Escreve relatório textual dos gráficos 3D gerados.
@@ -544,7 +549,8 @@ def write_graphics_summary_3d(
     text = format_graphics_summary_3d(
         model=model,
         results=results,
-        load_scale=load_scale,
+        nodal_load_scale=nodal_load_scale,
+        distributed_load_scale=distributed_load_scale,
     )
 
     output_path = Path(output_path)
@@ -557,7 +563,8 @@ def write_graphics_summary_3d(
 def format_graphics_summary_3d(
     model: StructuralModel,
     results: dict[str, Any],
-    load_scale: float,
+    nodal_load_scale: float,
+    distributed_load_scale: float,
 ) -> str:
     """
     Formata relatório textual dos gráficos 3D.
@@ -586,6 +593,7 @@ def format_graphics_summary_3d(
     lines.append("- identificação de elementos")
     lines.append("- apoios 3D")
     lines.append("- cargas nodais translacionais Fx, Fy e Fz")
+    lines.append("- cargas distribuídas 3D qx, qy e qz")
     lines.append("")
     lines.append("Camadas representadas em deformada_3d.png:")
     lines.append("- geometria indeformada de referência")
@@ -593,13 +601,16 @@ def format_graphics_summary_3d(
     lines.append("- apoios 3D")
     lines.append("")
     lines.append("Escalas visuais:")
-    lines.append(f"- fator visual de cargas nodais: {load_scale:.6e} m/kN")
+    lines.append(f"- fator visual de cargas nodais: {nodal_load_scale:.6e} m/kN")
+    lines.append(
+        f"- fator visual de cargas distribuídas: {distributed_load_scale:.6e} m/(kN/m)"
+    )
     lines.append("")
     lines.append("Convenções:")
     lines.append("- cargas nodais são desenhadas como setas aplicadas nos nós")
-    lines.append("- o comprimento das setas é visual, não está em escala estrutural real")
-    lines.append("- momentos nodais ainda não são representados graficamente")
-    lines.append("- cargas distribuídas ainda não são representadas graficamente")
+    lines.append("- cargas distribuídas são desenhadas como setas repetidas ao longo da barra")
+    lines.append("- o comprimento das setas é visual, não está em   escala estrutural real")
+    lines.append("- momentos nodais ainda não são representados     graficamente")
     lines.append("")
     lines.append("Observação:")
     lines.append("Este relatório descreve a geração gráfica 3D preliminar.")
@@ -607,6 +618,191 @@ def format_graphics_summary_3d(
     lines.append("")
 
     return "\n".join(lines)
+
+def calculate_distributed_load_scale_factor(model: StructuralModel) -> float:
+    """
+    Calcula fator de escala visual para cargas distribuídas 3D.
+
+    A maior intensidade resultante q será desenhada com setas de comprimento
+    aproximado de 12% do tamanho característico da estrutura.
+    """
+
+    max_q = calculate_max_distributed_load(model)
+    structure_size = calculate_structure_size(model)
+
+    if max_q <= 0.0 or structure_size <= 0.0:
+        return 1.0
+
+    target_arrow_length = 0.12 * structure_size
+    return target_arrow_length / max_q
+
+
+def calculate_max_distributed_load(model: StructuralModel) -> float:
+    """
+    Retorna a maior intensidade resultante de carga distribuída.
+    """
+
+    max_q = 0.0
+
+    for load in model.distributed_loads:
+        vector = np.array(
+            [
+                float(getattr(load, "qx", 0.0)),
+                float(getattr(load, "qy", 0.0)),
+                float(getattr(load, "qz", 0.0)),
+            ],
+            dtype=float,
+        )
+        value = float(np.linalg.norm(vector))
+        max_q = max(max_q, value)
+
+    return max_q
+
+
+def plot_distributed_loads_3d(
+    ax,
+    model: StructuralModel,
+    load_scale: float | None = None,
+    n_arrows: int = 5,
+) -> None:
+    """
+    Desenha cargas distribuídas 3D ao longo dos elementos.
+
+    Suporta:
+    - coordinate_system = "global"
+    - coordinate_system = "local"
+    """
+
+    if not model.distributed_loads:
+        return
+
+    if load_scale is None:
+        load_scale = calculate_distributed_load_scale_factor(model)
+
+    for load in model.distributed_loads:
+        element = model.get_element(load.element)
+        node_i = model.get_node(element.node_i)
+        node_j = model.get_node(element.node_j)
+
+        start = np.array([node_i.x, node_i.y, node_i.z], dtype=float)
+        end = np.array([node_j.x, node_j.y, node_j.z], dtype=float)
+
+        load_vector = get_distributed_load_vector_global_3d(model, element, load)
+        load_norm = float(np.linalg.norm(load_vector))
+
+        if load_norm <= 0.0:
+            continue
+
+        arrow_vector = load_scale * load_vector
+
+        for alpha in np.linspace(0.1, 0.9, n_arrows):
+            point = start + alpha * (end - start)
+
+            ax.quiver(
+                point[0],
+                point[1],
+                point[2],
+                arrow_vector[0],
+                arrow_vector[1],
+                arrow_vector[2],
+                arrow_length_ratio=0.20,
+                linewidth=1.2,
+                label="Carga distribuída 3D",
+            )
+
+        mid = 0.5 * (start + end)
+        label_position = mid + arrow_vector
+
+        ax.text(
+            label_position[0],
+            label_position[1],
+            label_position[2],
+            format_distributed_load_label(load),
+            fontsize=8,
+        )
+
+
+def get_distributed_load_vector_global_3d(model: StructuralModel, element, load) -> np.ndarray:
+    """
+    Retorna o vetor da carga distribuída no sistema global.
+    """
+
+    qx = float(getattr(load, "qx", 0.0))
+    qy = float(getattr(load, "qy", 0.0))
+    qz = float(getattr(load, "qz", 0.0))
+
+    coordinate_system = str(getattr(load, "coordinate_system", "local")).lower()
+
+    if coordinate_system == "global":
+        return np.array([qx, qy, qz], dtype=float)
+
+    # local -> global
+    rotation = build_rotation_matrix_3d_for_element(model, element)
+    local_vector = np.array([qx, qy, qz], dtype=float)
+
+    return rotation @ local_vector
+
+
+def build_rotation_matrix_3d_for_element(model: StructuralModel, element) -> np.ndarray:
+    """
+    Constrói matriz de rotação 3x3 do sistema local para o global.
+    """
+
+    node_i = model.get_node(element.node_i)
+    node_j = model.get_node(element.node_j)
+
+    xi = np.array([node_i.x, node_i.y, node_i.z], dtype=float)
+    xj = np.array([node_j.x, node_j.y, node_j.z], dtype=float)
+
+    x_local = xj - xi
+    length = float(np.linalg.norm(x_local))
+
+    if length <= 0.0:
+        return np.eye(3)
+
+    x_local = x_local / length
+
+    reference = np.array([0.0, 0.0, 1.0], dtype=float)
+    if np.linalg.norm(np.cross(reference, x_local)) < 1e-10:
+        reference = np.array([0.0, 1.0, 0.0], dtype=float)
+
+    y_local = np.cross(reference, x_local)
+    y_local_norm = float(np.linalg.norm(y_local))
+    if y_local_norm <= 0.0:
+        return np.eye(3)
+    y_local = y_local / y_local_norm
+
+    z_local = np.cross(x_local, y_local)
+    z_local_norm = float(np.linalg.norm(z_local))
+    if z_local_norm <= 0.0:
+        return np.eye(3)
+    z_local = z_local / z_local_norm
+
+    return np.column_stack((x_local, y_local, z_local))
+
+
+def format_distributed_load_label(load) -> str:
+    """
+    Formata texto compacto para carga distribuída.
+    """
+
+    parts = []
+
+    if abs(float(getattr(load, "qx", 0.0))) > 0.0:
+        parts.append(f"qx={float(getattr(load, 'qx', 0.0)):.2g}")
+
+    if abs(float(getattr(load, "qy", 0.0))) > 0.0:
+        parts.append(f"qy={float(getattr(load, 'qy', 0.0)):.2g}")
+
+    if abs(float(getattr(load, "qz", 0.0))) > 0.0:
+        parts.append(f"qz={float(getattr(load, 'qz', 0.0)):.2g}")
+
+    coordinate_system = str(getattr(load, "coordinate_system", "local")).lower()
+
+    if not parts:
+        return f"E{load.element}"
+
+    return f"E{load.element}\n" + "\n".join(parts) + f"\n({coordinate_system})"
 
 def save_figure(fig, output_path: str | Path) -> None:
     """
