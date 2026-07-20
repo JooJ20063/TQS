@@ -121,6 +121,7 @@ jobs:
           test -f results/ci_portico_combinacoes/ELU_02/deformada.png
           test -f results/ci_portico_combinacoes/ELU_02/cortante.png
           test -f results/ci_portico_combinacoes/ELU_02/momento_fletor.png
+          test -f results/ci_portico_combinacoes/ELU_02/resumo_flechas.txt
 
           test -f results/ci_portico_combinacoes/envoltoria.json
           test -f results/ci_portico_combinacoes/resumo_envoltoria.txt
@@ -128,7 +129,7 @@ jobs:
           test -f results/ci_portico_combinacoes/dimensionamento_vigas.csv
           test -f results/ci_portico_combinacoes/resumo_dimensionamento_vigas.txt
           test -f results/ci_portico_combinacoes/resumo_normativo.txt
-
+          
       - name: Verify frame3d outputs
         run: |
           test -f results/ci_viga_3d_console/resultados.json
@@ -136,6 +137,7 @@ jobs:
           test -f results/ci_viga_3d_console_y/resultados.json
           test -f results/ci_viga_3d_console_inclinada/resultados.json
           test -f results/ci_viga_3d_peso_proprio/resultados.json
+          test -f results/ci_viga_3d_peso_proprio/resumo_flechas.txt
 
           python - <<'PY'
           import json
@@ -150,6 +152,12 @@ jobs:
           global_y = read("results/ci_viga_3d_console_y/resultados.json")
           inclined = read("results/ci_viga_3d_console_inclinada/resultados.json")
           self_weight = read("results/ci_viga_3d_peso_proprio/resultados.json")
+          with open("results/ci_viga_3d_peso_proprio/resumo_flechas.txt", "r", encoding="utf-8") as file:
+              deflection_text = file.read()
+
+          assert "RESUMO PRELIMINAR DE FLECHAS" in deflection_text
+          assert "Tipo de análise: frame3d" in deflection_text
+          assert "Status:" in deflection_text
 
           assert nodal["analysis_type"] == "frame3d"
           assert distributed["analysis_type"] == "frame3d"
