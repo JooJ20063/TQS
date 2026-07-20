@@ -328,6 +328,15 @@ def calculate_self_weight_loads(
 ) -> list[DistributedLoad]:
     """
     Calcula as cargas distribuídas equivalentes ao peso próprio.
+
+    frame2d:
+    - mantém o comportamento antigo;
+    - peso próprio atua no eixo global Y negativo;
+    - carga é convertida para o sistema local da barra.
+
+    frame3d:
+    - peso próprio atua no eixo global Z negativo;
+    - carga é armazenada como carga distribuída global.
     """
 
     loads: list[DistributedLoad] = []
@@ -343,7 +352,20 @@ def calculate_self_weight_loads(
 
         w = gamma * section.A
 
-        # Carga no sistema global:
+        if model.analysis_type == "frame3d":
+            loads.append(
+                DistributedLoad(
+                    element=element.id,
+                    qx=0.0,
+                    qy=0.0,
+                    qz=-w,
+                    coordinate_system="global",
+                )
+            )
+            continue
+
+        # Comportamento legado frame2d:
+        # carga no sistema global:
         gx = 0.0
         gy = -w
 
@@ -360,11 +382,11 @@ def calculate_self_weight_loads(
                 element=element.id,
                 qx=qx_local,
                 qy=qy_local,
+                coordinate_system="local",
             )
         )
 
     return loads
-
 
 def append_loads_to_load_case(
     model: StructuralModel,
