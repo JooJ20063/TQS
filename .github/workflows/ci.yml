@@ -82,6 +82,10 @@ jobs:
         run: |
           python app/main.py examples/viga_3d_console_inclinada.json -o results/ci_viga_3d_console_inclinada
 
+      - name: Run Estruturalis - frame3d self weight
+        run: |
+          python app/main.py examples/viga_3d_peso_proprio.json -o results/ci_viga_3d_peso_proprio
+
       - name: Verify beam outputs
         run: |
           test -f results/ci_viga_carga_central/resultados.json
@@ -130,6 +134,7 @@ jobs:
           test -f results/ci_viga_3d_console_q/resultados.json
           test -f results/ci_viga_3d_console_y/resultados.json
           test -f results/ci_viga_3d_console_inclinada/resultados.json
+          test -f results/ci_viga_3d_peso_proprio/resultados.json
 
           python - <<'PY'
           import json
@@ -185,6 +190,16 @@ jobs:
           assert math.isclose(inclined_reaction["mx"], 30.0, rel_tol=1e-9, abs_tol=1e-8)
           assert math.isclose(inclined_reaction["my"], -40.0, rel_tol=1e-9, abs_tol=1e-8)
           assert math.isclose(inclined_reaction["mz"], 0.0, rel_tol=1e-9, abs_tol=1e-8)
+
+          self_weight = read("results/ci_viga_3d_peso_proprio/resultados.json")
+
+          assert self_weight["analysis_type"] == "frame3d"
+          assert self_weight["equilibrium"]["status"] == "OK"
+
+          self_weight_reaction = self_weight["reactions"][0]
+
+          assert math.isclose(self_weight_reaction["fz"], 10.0, rel_tol=1e-9, abs_tol=1e-8)
+          assert math.isclose(self_weight_reaction["my"], -20.0, rel_tol=1e-9, abs_tol=1e-8)
 
           print("Frame3D checks passed.")
           PY
