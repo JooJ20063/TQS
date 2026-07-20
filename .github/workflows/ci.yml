@@ -139,6 +139,21 @@ jobs:
           test -f results/ci_viga_3d_peso_proprio/resultados.json
           test -f results/ci_viga_3d_peso_proprio/resumo_flechas.txt
 
+          test -f results/ci_viga_3d_console/estrutura_3d.png
+          test -f results/ci_viga_3d_console/deformada_3d.png
+
+          test -f results/ci_viga_3d_console_q/estrutura_3d.png
+          test -f results/ci_viga_3d_console_q/deformada_3d.png
+
+          test -f results/ci_viga_3d_console_y/estrutura_3d.png
+          test -f results/ci_viga_3d_console_y/deformada_3d.png
+
+          test -f results/ci_viga_3d_console_inclinada/estrutura_3d.png
+          test -f results/ci_viga_3d_console_inclinada/deformada_3d.png
+
+          test -f results/ci_viga_3d_peso_proprio/estrutura_3d.png
+          test -f results/ci_viga_3d_peso_proprio/deformada_3d.png
+
           python - <<'PY'
           import json
           import math
