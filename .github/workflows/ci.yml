@@ -285,6 +285,7 @@ jobs:
           assert "estrutura_3d.png" in graphics_summary
           assert "deformada_3d.png" in graphics_summary
           assert "cargas nodais translacionais Fx, Fy e Fz" in graphics_summary
+          assert "cargas distribuídas 3D qx, qy e qz" in graphics_summary
 
           print("Common result accessors passed.")
           PY
