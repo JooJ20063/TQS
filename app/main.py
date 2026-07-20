@@ -82,6 +82,8 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.envelope_3d import create_envelope_3d, save_envelope_3d_json
     from core.envelope_csv_3d import write_envelope_3d_csv
     from core.envelope_report_3d import write_envelope_3d_report_txt
+    from core.displacement_report_3d import write_displacement_summary_3d_txt
+    from core.displacement_csv_3d import write_displacements_3d_csv
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -116,6 +118,16 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     write_envelope_3d_report_txt(
         envelope,
         Path(output_dir) / "resumo_envoltoria_3d.txt",
+    )
+
+    write_displacement_summary_3d_txt(
+        results,
+        Path(output_dir) / "resumo_deslocamentos_3d.txt",
+    )
+
+    write_displacements_3d_csv(
+        results,
+        Path(output_dir) / "deslocamentos_3d.csv",
     )
 
     print("[5/5] Gerando resultados gráficos 3D...")
