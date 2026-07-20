@@ -79,6 +79,9 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.deflection import write_preliminary_deflection_summary_txt
     from plots.diagrams_3d import generate_all_diagrams_3d
     from plots.interactive_3d import generate_all_interactive_diagrams_3d
+    from core.envelope_3d import create_envelope_3d, save_envelope_3d_json
+    from core.envelope_csv_3d import write_envelope_3d_csv
+    from core.envelope_report_3d import write_envelope_3d_report_txt
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -97,6 +100,23 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     print("[4/5] Salvando resultados...")
 
     write_results_json(results, output_dir / "resultados.json")
+
+    envelope = create_envelope_3d({"ANALISE_UNICA": results})
+
+    save_envelope_3d_json(
+        envelope,
+        Path(output_dir) / "envoltoria_3d.json",
+    )
+
+    write_envelope_3d_csv(
+        envelope,
+        Path(output_dir) / "envoltoria_3d.csv",
+    )
+
+    write_envelope_3d_report_txt(
+        envelope,
+        Path(output_dir) / "resumo_envoltoria_3d.txt",
+    )
 
     print("[5/5] Gerando resultados gráficos 3D...")
 
