@@ -559,6 +559,17 @@ def write_graphics_summary_3d(
     with output_path.open("w", encoding="utf-8") as file:
         file.write(text)
 
+def is_large_model_for_graphics(model: StructuralModel) -> bool:
+    complexity = (
+        len(getattr(model, "nodes", []))
+        + len(getattr(model, "elements", []))
+        + len(getattr(model, "supports", []))
+        + len(getattr(model, "nodal_loads", []))
+        + len(getattr(model, "distributed_loads", []))
+    )
+
+    return complexity > 70
+
 
 def format_graphics_summary_3d(
     model: StructuralModel,
@@ -572,6 +583,8 @@ def format_graphics_summary_3d(
 
     lines: list[str] = []
 
+    clean_mode = is_large_model_for_graphics(model)
+
     lines.append("RESUMO GRÁFICO 3D - Estruturalis")
     lines.append("=" * 60)
     lines.append("")
@@ -584,8 +597,22 @@ def format_graphics_summary_3d(
     lines.append(f"Cargas distribuídas: {len(model.distributed_loads)}")
     lines.append("")
     lines.append("Arquivos gráficos gerados:")
-    lines.append("- estrutura_3d.png")
-    lines.append("- deformada_3d.png")
+    lines.append("  - estrutura_3d.png")
+    lines.append("  - deformada_3d.png")
+    lines.append("  - estrutura_3d_interativa.html")
+    lines.append("")
+    lines.append("Camadas presentes no HTML interativo:")
+    lines.append("")
+    lines.append("Modo visual interativo:")
+    if clean_mode:
+        lines.append("- modo limpo ativado automaticamente")
+        lines.append("- labels fixos de nós ocultados")
+        lines.append("- cargas nodais iniciam desligadas na legenda")
+        lines.append("- cargas distribuídas iniciam desligadas na legenda")
+        lines.append("- informações completas disponíveis por hover")
+    else:
+        lines.append("- modo detalhado")
+        lines.append("- labels e cargas visíveis por padrão")
     lines.append("")
     lines.append("Camadas representadas em estrutura_3d.png:")
     lines.append("- geometria indeformada")

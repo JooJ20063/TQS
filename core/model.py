@@ -346,6 +346,19 @@ class StructuralModel:
 
         return load_cases[name]
 
+    def node_by_id(self, node_id: int):
+        for node in self.nodes:
+            if node.id == node_id:
+                return node
+        raise ValueError(f"Nó não encontrado: {node_id}")
+
+
+    def element_by_id(self, element_id: int):
+        for element in self.elements:
+            if element.id == element_id:
+                return element
+        raise ValueError(f"Elemento não encontrado: {element_id}")
+
     # ------------------------------------------------------
     # GRAUS DE LIBERDADE
     # ------------------------------------------------------
