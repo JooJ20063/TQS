@@ -153,6 +153,7 @@ jobs:
 
           test -f results/ci_viga_3d_peso_proprio/estrutura_3d.png
           test -f results/ci_viga_3d_peso_proprio/deformada_3d.png
+          test -f results/ci_portico_3d_simples/resumo_grafico_3d.txt
 
           python - <<'PY'
           import json
@@ -252,6 +253,14 @@ jobs:
           assert summary_3d["max_rotation"] is not None
           assert summary_3d["max_element_forces"]["moment_z"] is not None
           assert summary_3d["equilibrium_status"] == "OK"
+
+          with open("results/ci_portico_3d_simples/resumo_grafico_3d.txt", "r", encoding="utf-8") as file:
+              graphics_summary = file.read()
+
+          assert "RESUMO GRÁFICO 3D - Estruturalis" in graphics_summary
+          assert "estrutura_3d.png" in graphics_summary
+          assert "deformada_3d.png" in graphics_summary
+          assert "cargas nodais translacionais Fx, Fy e Fz" in graphics_summary
 
           print("Common result accessors passed.")
           PY
