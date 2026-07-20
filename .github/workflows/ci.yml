@@ -184,6 +184,9 @@ jobs:
           test -f results/ci_viga_3d_console/envoltoria_3d.csv
           test -f results/ci_viga_3d_console/resumo_envoltoria_3d.txt
 
+          test -f results/ci_viga_3d_console/resumo_deslocamentos_3d.txt
+          test -f results/ci_viga_3d_console/deslocamentos_3d.csv
+
           python - <<'PY'
           import json
           import math
@@ -308,4 +311,41 @@ jobs:
           assert "Estrutura 3D Interativa" in content
 
           print("Interactive HTML check passed.")
+          PY
+
+      - name: Verify frame3d displacement report
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          output_dir = Path("results/ci_viga_3d_console")
+
+          report_path = output_dir / "resumo_deslocamentos_3d.txt"
+          csv_path = output_dir / "deslocamentos_3d.csv"
+
+          assert report_path.exists()
+          assert csv_path.exists()
+
+          report = report_path.read_text(encoding="utf-8")
+
+          assert "RESUMO DE DESLOCAMENTOS 3D - Estruturalis" in report
+          assert "Tipo de análise: frame3d" in report
+          assert "Deslocamento uz" in report
+          assert "Deslocamento translacional resultante" in report
+          assert "Drift aproximado por pavimento" in report
+
+          with csv_path.open("r", encoding="utf-8") as file:
+              rows = list(csv.DictReader(file))
+
+          assert len(rows) == 2
+
+          node_2 = next(row for row in rows if row["node"] == "2")
+
+          assert abs(float(node_2["uz"]) - (-0.0256)) < 1e-10
+          assert abs(float(node_2["ry"]) - 0.0096) < 1e-10
+          assert abs(float(node_2["translation_resultant"]) - 0.0256) < 1e-10
+          assert abs(float(node_2["rotation_resultant"]) - 0.0096) < 1e-10
+
+          print("Frame3d displacement report checks passed.")
           PY
