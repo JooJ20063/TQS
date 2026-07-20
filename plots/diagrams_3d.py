@@ -17,17 +17,21 @@ def generate_all_diagrams_3d(
     """
     Gera todos os diagramas 3D disponíveis.
 
-    Nesta etapa inicial:
+    Nesta etapa:
     - estrutura_3d.png;
-    - deformada_3d.png.
+    - deformada_3d.png;
+    - resumo_grafico_3d.txt.
     """
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    load_scale = calculate_nodal_load_scale_factor(model)
+
     generate_structure_plot_3d(
         model=model,
         output_path=output_dir / "estrutura_3d.png",
+        load_scale=load_scale,
     )
 
     generate_deformed_shape_plot_3d(
@@ -36,10 +40,17 @@ def generate_all_diagrams_3d(
         output_path=output_dir / "deformada_3d.png",
     )
 
+    write_graphics_summary_3d(
+        model=model,
+        results=results,
+        output_path=output_dir / "resumo_grafico_3d.txt",
+        load_scale=load_scale,
+    )
 
 def generate_structure_plot_3d(
     model: StructuralModel,
     output_path: str | Path,
+    load_scale: float | None = None,
 ) -> None:
     """
     Gera a visualização da estrutura tridimensional indeformada.
@@ -77,6 +88,7 @@ def generate_structure_plot_3d(
     for node in model.nodes:
         ax.text(node.x, node.y, node.z, f"N{node.id}", fontsize=8)
         plot_supports_3d(ax, model)
+        plot_nodal_loads_3d(ax, model, load_scale=load_scale)
         add_legend_if_needed(ax)
 
     ax.set_title("Estrutura 3D")
@@ -390,6 +402,211 @@ def add_legend_if_needed(ax) -> None:
         fontsize=8,
     )
 
+def plot_nodal_loads_3d(
+    ax,
+    model: StructuralModel,
+    load_scale: float | None = None,
+) -> None:
+    """
+    Desenha cargas nodais translacionais no gráfico 3D.
+
+    Nesta etapa são representadas:
+    - fx;
+    - fy;
+    - fz.
+
+    Momentos nodais mx, my, mz ficam para um PR separado.
+    """
+
+    if not model.nodal_loads:
+        return
+
+    if load_scale is None:
+        load_scale = calculate_nodal_load_scale_factor(model)
+
+    for load in model.nodal_loads:
+        node = model.get_node(load.node)
+
+        force_vector = np.array(
+            [
+                float(load.fx),
+                float(load.fy),
+                float(load.fz),
+            ],
+            dtype=float,
+        )
+
+        force_norm = float(np.linalg.norm(force_vector))
+
+        if force_norm <= 0.0:
+            continue
+
+        arrow_vector = load_scale * force_vector
+
+        ax.quiver(
+            node.x,
+            node.y,
+            node.z,
+            arrow_vector[0],
+            arrow_vector[1],
+            arrow_vector[2],
+            arrow_length_ratio=0.20,
+            linewidth=1.8,
+            label="Carga nodal 3D",
+        )
+
+        label = format_nodal_force_label(load)
+
+        label_position = np.array([node.x, node.y, node.z], dtype=float) + arrow_vector
+
+        ax.text(
+            label_position[0],
+            label_position[1],
+            label_position[2],
+            label,
+            fontsize=8,
+        )
+
+
+def calculate_nodal_load_scale_factor(model: StructuralModel) -> float:
+    """
+    Calcula fator de escala visual para setas de cargas nodais.
+
+    A maior carga nodal translacional será desenhada com comprimento
+    aproximado de 15% do tamanho característico da estrutura.
+    """
+
+    max_force = calculate_max_nodal_force(model)
+    structure_size = calculate_structure_size(model)
+
+    if max_force <= 0.0 or structure_size <= 0.0:
+        return 1.0
+
+    target_arrow_length = 0.15 * structure_size
+
+    return target_arrow_length / max_force
+
+
+def calculate_max_nodal_force(model: StructuralModel) -> float:
+    """
+    Retorna a maior força nodal translacional resultante.
+    """
+
+    max_force = 0.0
+
+    for load in model.nodal_loads:
+        force_vector = np.array(
+            [
+                float(load.fx),
+                float(load.fy),
+                float(load.fz),
+            ],
+            dtype=float,
+        )
+
+        force_norm = float(np.linalg.norm(force_vector))
+        max_force = max(max_force, force_norm)
+
+    return max_force
+
+
+def format_nodal_force_label(load) -> str:
+    """
+    Formata texto compacto para cargas nodais translacionais.
+    """
+
+    parts = []
+
+    if abs(float(load.fx)) > 0.0:
+        parts.append(f"Fx={float(load.fx):.2g}")
+
+    if abs(float(load.fy)) > 0.0:
+        parts.append(f"Fy={float(load.fy):.2g}")
+
+    if abs(float(load.fz)) > 0.0:
+        parts.append(f"Fz={float(load.fz):.2g}")
+
+    if not parts:
+        return f"N{load.node}"
+
+    return "\n".join(parts)
+
+def write_graphics_summary_3d(
+    model: StructuralModel,
+    results: dict[str, Any],
+    output_path: str | Path,
+    load_scale: float,
+) -> None:
+    """
+    Escreve relatório textual dos gráficos 3D gerados.
+    """
+
+    text = format_graphics_summary_3d(
+        model=model,
+        results=results,
+        load_scale=load_scale,
+    )
+
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as file:
+        file.write(text)
+
+
+def format_graphics_summary_3d(
+    model: StructuralModel,
+    results: dict[str, Any],
+    load_scale: float,
+) -> str:
+    """
+    Formata relatório textual dos gráficos 3D.
+    """
+
+    lines: list[str] = []
+
+    lines.append("RESUMO GRÁFICO 3D - Estruturalis")
+    lines.append("=" * 60)
+    lines.append("")
+    lines.append(f"Modelo: {results.get('model_name', 'sem_nome')}")
+    lines.append(f"Tipo de análise: {results.get('analysis_type', model.analysis_type)}")
+    lines.append(f"Nós: {len(model.nodes)}")
+    lines.append(f"Elementos: {len(model.elements)}")
+    lines.append(f"Apoios: {len(model.supports)}")
+    lines.append(f"Cargas nodais: {len(model.nodal_loads)}")
+    lines.append(f"Cargas distribuídas: {len(model.distributed_loads)}")
+    lines.append("")
+    lines.append("Arquivos gráficos gerados:")
+    lines.append("- estrutura_3d.png")
+    lines.append("- deformada_3d.png")
+    lines.append("")
+    lines.append("Camadas representadas em estrutura_3d.png:")
+    lines.append("- geometria indeformada")
+    lines.append("- identificação de nós")
+    lines.append("- identificação de elementos")
+    lines.append("- apoios 3D")
+    lines.append("- cargas nodais translacionais Fx, Fy e Fz")
+    lines.append("")
+    lines.append("Camadas representadas em deformada_3d.png:")
+    lines.append("- geometria indeformada de referência")
+    lines.append("- deformada amplificada")
+    lines.append("- apoios 3D")
+    lines.append("")
+    lines.append("Escalas visuais:")
+    lines.append(f"- fator visual de cargas nodais: {load_scale:.6e} m/kN")
+    lines.append("")
+    lines.append("Convenções:")
+    lines.append("- cargas nodais são desenhadas como setas aplicadas nos nós")
+    lines.append("- o comprimento das setas é visual, não está em escala estrutural real")
+    lines.append("- momentos nodais ainda não são representados graficamente")
+    lines.append("- cargas distribuídas ainda não são representadas graficamente")
+    lines.append("")
+    lines.append("Observação:")
+    lines.append("Este relatório descreve a geração gráfica 3D preliminar.")
+    lines.append("Não substitui interpretação técnica dos resultados numéricos.")
+    lines.append("")
+
+    return "\n".join(lines)
 
 def save_figure(fig, output_path: str | Path) -> None:
     """
