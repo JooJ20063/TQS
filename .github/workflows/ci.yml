@@ -193,6 +193,9 @@ jobs:
           test -f results/ci_portico_3d_simples/pilares_3d.csv
           test -f results/ci_portico_3d_simples/resumo_pilares_3d.txt
 
+          test -f results/ci_viga_3d_console/memorial_3d.txt
+          test -f results/ci_portico_3d_simples/memorial_3d.txt
+
           python - <<'PY'
           import json
           import math
@@ -477,4 +480,44 @@ jobs:
                       assert float(row["preliminary_index"]) >= 0.0
 
           print("Frame3d column critical forces checks passed.")
+          PY
+
+      - name: Verify frame3d integrated memorial
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          output_dirs = [
+              Path("results/ci_viga_3d_console"),
+              Path("results/ci_portico_3d_simples"),
+          ]
+
+          required_sections = [
+              "MEMORIAL INTEGRADO 3D - Estruturalis",
+              "1. Dados gerais da análise",
+              "2. Equilíbrio global",
+              "3. Deslocamentos e drift",
+              "4. Envoltória de esforços 3D",
+              "5. Dimensionamento preliminar de vigas 3D",
+              "6. Pilares 3D - esforços críticos",
+              "7. Arquivos principais gerados",
+              "8. Limitações e observações",
+          ]
+
+          for output_dir in output_dirs:
+              memorial_path = output_dir / "memorial_3d.txt"
+
+              assert memorial_path.exists(), memorial_path
+
+              text = memorial_path.read_text(encoding="utf-8")
+
+              for section in required_sections:
+                  assert section in text, f"Seção ausente em {memorial_path}: {section}"
+
+              assert "Tipo de análise: frame3d" in text
+              assert "Status:" in text
+              assert "Os esforços internos 3D são apresentados no sistema local de cada barra" in text
+              assert "não substitui verificação normativa completa" in text.lower()
+
+          print("Frame3d integrated memorial checks passed.")
           PY
