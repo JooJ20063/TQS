@@ -188,6 +188,10 @@ jobs:
           test -f results/ci_viga_3d_console/deslocamentos_3d.csv
           test -f results/ci_viga_3d_console/dimensionamento_vigas_3d.csv
           test -f results/ci_viga_3d_console/resumo_dimensionamento_vigas_3d.txt
+          test -f results/ci_viga_3d_console/pilares_3d.csv
+          test -f results/ci_viga_3d_console/resumo_pilares_3d.txt
+          test -f results/ci_portico_3d_simples/pilares_3d.csv
+          test -f results/ci_portico_3d_simples/resumo_pilares_3d.txt
 
           python - <<'PY'
           import json
@@ -411,4 +415,66 @@ jobs:
                   assert row["critical_axis"] in {"My", "Mz"}
 
           print("Preliminary frame3d beam design checks passed.")
+          PY
+
+      - name: Verify frame3d column critical forces report
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+
+          output_dirs = [
+              Path("results/ci_viga_3d_console"),
+              Path("results/ci_portico_3d_simples"),
+          ]
+
+          for output_dir in output_dirs:
+              csv_path = output_dir / "pilares_3d.csv"
+              report_path = output_dir / "resumo_pilares_3d.txt"
+
+              assert csv_path.exists(), csv_path
+              assert report_path.exists(), report_path
+
+              report = report_path.read_text(encoding="utf-8")
+
+              assert "RESUMO DE ESFORÇOS CRÍTICOS EM PILARES 3D - Estruturalis" in report
+              assert "Tipo de análise: frame3d" in report
+              assert "column_critical_forces_3d" in report
+              assert "Esta rotina não dimensiona pilares" in report
+              assert "interação N + My + Mz" in report
+
+              with csv_path.open("r", encoding="utf-8") as file:
+                  rows = list(csv.DictReader(file))
+
+              required_columns = {
+                  "element",
+                  "node_i",
+                  "node_j",
+                  "status",
+                  "normal_value",
+                  "normal_abs",
+                  "moment_y_value",
+                  "moment_y_abs",
+                  "moment_z_value",
+                  "moment_z_abs",
+                  "preliminary_index",
+              }
+
+              assert required_columns.issubset(rows[0].keys()) if rows else True
+
+              if output_dir.name == "ci_portico_3d_simples":
+                  ok_columns = [
+                      row for row in rows
+                      if row["status"] == "ok"
+                  ]
+
+                  assert ok_columns, "Nenhum pilar identificado no pórtico 3D simples"
+
+                  for row in ok_columns:
+                      assert float(row["normal_abs"]) >= 0.0
+                      assert float(row["moment_y_abs"]) >= 0.0
+                      assert float(row["moment_z_abs"]) >= 0.0
+                      assert float(row["preliminary_index"]) >= 0.0
+
+          print("Frame3d column critical forces checks passed.")
           PY
