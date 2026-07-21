@@ -192,10 +192,14 @@ jobs:
           test -f results/ci_viga_3d_console/deslocamentos_3d.csv
           test -f results/ci_viga_3d_console/dimensionamento_vigas_3d.csv
           test -f results/ci_viga_3d_console/resumo_dimensionamento_vigas_3d.txt
+          test -f results/ci_viga_3d_console/vigas_cortante_torcao_3d.csv
+          test -f results/ci_viga_3d_console/resumo_vigas_cortante_torcao_3d.txt
           test -f results/ci_viga_3d_console/pilares_3d.csv
           test -f results/ci_viga_3d_console/resumo_pilares_3d.txt
           test -f results/ci_portico_3d_simples/pilares_3d.csv
           test -f results/ci_portico_3d_simples/resumo_pilares_3d.txt
+          test -f results/ci_portico_3d_simples/vigas_cortante_torcao_3d.csv
+          test -f results/ci_portico_3d_simples/resumo_vigas_cortante_torcao_3d.txt
 
           test -f results/ci_viga_3d_console/memorial_3d.txt
           test -f results/ci_portico_3d_simples/memorial_3d.txt
@@ -401,10 +405,20 @@ jobs:
                   "status",
                   "my_kNm",
                   "mz_kNm",
-                  "as_my_cm2",
-                  "as_mz_cm2",
+                  "as_my_calc_cm2",
+                  "as_my_min_cm2",
+                  "as_my_req_cm2",
+                  "as_my_governing_reason",
+                  "as_mz_calc_cm2",
+                  "as_mz_min_cm2",
+                  "as_mz_req_cm2",
+                  "as_mz_governing_reason",
                   "as_required_cm2",
+                  "critical_as_calculated_cm2",
+                  "critical_as_min_cm2",
+                  "critical_as_max_cm2",
                   "critical_axis",
+                  "governing_reason",
               }
 
               assert required_columns.issubset(rows[0].keys())
@@ -419,7 +433,15 @@ jobs:
 
               for row in designed_beams:
                   assert float(row["as_required_cm2"]) >= 0.0
+                  assert float(row["critical_as_min_cm2"]) >= 0.0
+                  assert float(row["critical_as_max_cm2"]) >= 0.0
                   assert row["critical_axis"] in {"My", "Mz"}
+                  assert row["governing_reason"] in {
+                      "minimum_reinforcement",
+                      "calculated_reinforcement",
+                      "above_preliminary_maximum",
+                      "invalid_geometry_or_material",
+                  }
 
           print("Preliminary frame3d beam design checks passed.")
           PY
