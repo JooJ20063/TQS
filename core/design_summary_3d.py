@@ -241,7 +241,14 @@ def _append_beam_design(lines: list[str], beam_design: dict[str, Any] | None) ->
             f"E{critical['element']} "
             f"(N{critical['node_i']} -> N{critical['node_j']}) | "
             f"eixo {critical['critical_axis']} | "
-            f"As={critical['as_required_cm2']:.6e} cm²"
+            f"As_req={critical['as_required_cm2']:.6e} cm² | "
+            f"governa={_format_governing_reason(critical.get('governing_reason'))}"
+        )
+        lines.append(
+            "Armadura do elemento crítico: "
+            f"As_calc={critical.get('critical_as_calculated_cm2', 0.0):.6e} cm² | "
+            f"As_min={critical.get('critical_as_min_cm2', 0.0):.6e} cm² | "
+            f"As_max={critical.get('critical_as_max_cm2', 0.0):.6e} cm²"
         )
         lines.append(
             "Momentos do elemento crítico: "
@@ -390,3 +397,16 @@ def _append_column_global_item(
         f"E{item.get('element')} "
         f"(N{item.get('node_i')} -> N{item.get('node_j')})"
     )
+
+
+def _format_governing_reason(reason: str | None) -> str:
+    labels = {
+        "minimum_reinforcement": "armadura mínima preliminar",
+        "calculated_reinforcement": "armadura calculada",
+        "above_preliminary_maximum": "acima do máximo preliminar",
+        "invalid_geometry_or_material": "geometria ou material inválido",
+        "unknown": "indefinido",
+        None: "indefinido",
+    }
+
+    return labels.get(reason, str(reason))
