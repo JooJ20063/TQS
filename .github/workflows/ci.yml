@@ -110,6 +110,10 @@ jobs:
         run: |
           python app/main.py examples/portico_3d_simples.json -o results/ci_portico_3d_simples
 
+      - name: Validate frame3d examples
+        run: |
+          python scripts/validate_frame3d_examples.py
+
       - name: Verify beam outputs
         run: |
           test -f results/ci_viga_carga_central/resultados.json
