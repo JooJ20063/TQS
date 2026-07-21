@@ -45,6 +45,10 @@ python app/main.py examples/portico_peso_proprio.json -o results/portico_peso_pr
 python app/main.py examples/portico_combinacoes.json -o results/portico_combinacoes
 ```
 
+## Documentação
+
+- [Análise frame3d](docs/frame3d.md): documentação do módulo tridimensional, incluindo graus de liberdade, cargas, envoltória, deslocamentos, dimensionamento preliminar de vigas, pilares críticos e limitações.
+
 ## Observação
 
 Projeto didático. Não substitui software profissional de projeto estrutural.
