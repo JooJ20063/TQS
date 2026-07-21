@@ -90,6 +90,7 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.column_critical_3d import create_column_critical_forces_3d
     from core.column_critical_csv_3d import write_column_critical_forces_3d_csv
     from core.column_critical_report_3d import write_column_critical_forces_3d_report_txt
+    from core.design_summary_3d import write_frame3d_memorial_txt
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -164,6 +165,15 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     write_column_critical_forces_3d_report_txt(
         column_forces_3d,
         Path(output_dir) / "resumo_pilares_3d.txt",
+    )
+
+    write_frame3d_memorial_txt(
+        model=model,
+        results=results,
+        envelope=envelope,
+        beam_design=beam_design_3d,
+        column_report=column_forces_3d,
+        output_path=Path(output_dir) / "memorial_3d.txt",
     )
 
     print("[5/5] Gerando resultados gráficos 3D...")
