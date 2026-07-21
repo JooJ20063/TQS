@@ -87,6 +87,9 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     from core.beam_design_3d import design_frame3d_beams_preliminary
     from core.beam_design_csv_3d import write_beam_design_3d_csv
     from core.beam_design_report_3d import write_beam_design_3d_report_txt
+    from core.beam_shear_torsion_3d import create_beam_shear_torsion_report_3d
+    from core.beam_shear_torsion_csv_3d import write_beam_shear_torsion_3d_csv
+    from core.beam_shear_torsion_report_3d import write_beam_shear_torsion_3d_report_txt
     from core.column_critical_3d import create_column_critical_forces_3d
     from core.column_critical_csv_3d import write_column_critical_forces_3d_csv
     from core.column_critical_report_3d import write_column_critical_forces_3d_report_txt
@@ -150,6 +153,21 @@ def run_single_analysis_3d(model, output_dir: Path) -> dict:
     write_beam_design_3d_report_txt(
         beam_design_3d,
         Path(output_dir) / "resumo_dimensionamento_vigas_3d.txt",
+    )
+
+    beam_shear_torsion_3d = create_beam_shear_torsion_report_3d(
+        model=model,
+        envelope=envelope,
+    )
+
+    write_beam_shear_torsion_3d_csv(
+        beam_shear_torsion_3d,
+        Path(output_dir) / "vigas_cortante_torcao_3d.csv",
+    )
+
+    write_beam_shear_torsion_3d_report_txt(
+        beam_shear_torsion_3d,
+        Path(output_dir) / "resumo_vigas_cortante_torcao_3d.txt",
     )
 
     column_forces_3d = create_column_critical_forces_3d(

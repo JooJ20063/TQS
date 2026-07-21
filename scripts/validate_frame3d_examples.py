@@ -94,6 +94,8 @@ EXPECTED_OUTPUT_FILES = [
     "resumo_deslocamentos_3d.txt",
     "dimensionamento_vigas_3d.csv",
     "resumo_dimensionamento_vigas_3d.txt",
+    "vigas_cortante_torcao_3d.csv",
+    "resumo_vigas_cortante_torcao_3d.txt",
     "pilares_3d.csv",
     "resumo_pilares_3d.txt",
     "memorial_3d.txt",
