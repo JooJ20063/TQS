@@ -96,10 +96,12 @@ def design_frame3d_beams_preliminary(
         )
 
         critical_axis = "Mz"
+        critical_design = design_mz
         critical_as = design_mz["as_required_cm2"]
 
         if design_my["as_required_cm2"] > critical_as:
             critical_axis = "My"
+            critical_design = design_my
             critical_as = design_my["as_required_cm2"]
 
         status = "ok"
@@ -130,6 +132,10 @@ def design_frame3d_beams_preliminary(
                 "design_mz": design_mz,
                 "critical_axis": critical_axis,
                 "as_required_cm2": critical_as,
+                "critical_as_calculated_cm2": critical_design.get("as_calculated_cm2", 0.0),
+                "critical_as_min_cm2": critical_design.get("as_min_cm2", 0.0),
+                "critical_as_max_cm2": critical_design.get("as_max_cm2", 0.0),
+                "governing_reason": critical_design.get("governing_reason", "unknown"),
                 "warnings": warnings,
             }
         )
@@ -228,6 +234,7 @@ def _design_flexural_axis(
             "as_max_cm2": as_max_cm2,
             "as_required_cm2": as_min_cm2,
             "status": "minimum_reinforcement",
+            "governing_reason": "minimum_reinforcement",
         }
 
     if lever_arm_cm <= 0.0 or fyd_kn_cm2 <= 0.0:
@@ -243,16 +250,24 @@ def _design_flexural_axis(
             "as_max_cm2": as_max_cm2,
             "as_required_cm2": 0.0,
             "status": "invalid_geometry_or_material",
+            "governing_reason": "invalid_geometry_or_material",
         }
 
     moment_kn_cm = 100.0 * moment_kNm
     as_calculated_cm2 = moment_kn_cm / (fyd_kn_cm2 * lever_arm_cm)
     as_required_cm2 = max(as_calculated_cm2, as_min_cm2)
 
+    governing_reason = (
+        "minimum_reinforcement"
+        if as_required_cm2 <= as_min_cm2 + 1.0e-12
+        else "calculated_reinforcement"
+    )
+
     status = "ok"
 
     if as_required_cm2 > as_max_cm2:
         status = "above_preliminary_maximum"
+        governing_reason = "above_preliminary_maximum"
 
     return {
         "axis": axis,
@@ -266,6 +281,7 @@ def _design_flexural_axis(
         "as_max_cm2": as_max_cm2,
         "as_required_cm2": as_required_cm2,
         "status": status,
+        "governing_reason": governing_reason,
     }
 
 
@@ -304,6 +320,10 @@ def _create_global_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
             "node_j": critical["node_j"],
             "critical_axis": critical["critical_axis"],
             "as_required_cm2": critical["as_required_cm2"],
+            "critical_as_calculated_cm2": critical.get("critical_as_calculated_cm2", 0.0),
+            "critical_as_min_cm2": critical.get("critical_as_min_cm2", 0.0),
+            "critical_as_max_cm2": critical.get("critical_as_max_cm2", 0.0),
+            "governing_reason": critical.get("governing_reason", "unknown"),
             "my_kNm": critical["my_kNm"],
             "mz_kNm": critical["mz_kNm"],
         },

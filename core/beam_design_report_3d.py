@@ -57,7 +57,14 @@ def format_beam_design_3d_report(design: dict[str, Any]) -> str:
             f"E{critical['element']} "
             f"(N{critical['node_i']} -> N{critical['node_j']}) | "
             f"eixo {critical['critical_axis']} | "
-            f"As={critical['as_required_cm2']:.6e} cm²"
+            f"As_req={critical['as_required_cm2']:.6e} cm² | "
+            f"governa={_format_governing_reason(critical.get('governing_reason'))}"
+        )
+        lines.append(
+            "Armadura do elemento crítico: "
+            f"As_calc={critical.get('critical_as_calculated_cm2', 0.0):.6e} cm² | "
+            f"As_min={critical.get('critical_as_min_cm2', 0.0):.6e} cm² | "
+            f"As_max={critical.get('critical_as_max_cm2', 0.0):.6e} cm²"
         )
     else:
         lines.append("Elemento crítico: nenhum")
@@ -99,20 +106,27 @@ def format_beam_design_3d_report(design: dict[str, Any]) -> str:
         lines.append(
             f"  Flexão My: "
             f"As_calc={design_my.get('as_calculated_cm2', 0.0):.6e} cm² | "
+            f"As_min={design_my.get('as_min_cm2', 0.0):.6e} cm² | "
+            f"As_max={design_my.get('as_max_cm2', 0.0):.6e} cm² | "
             f"As_req={design_my.get('as_required_cm2', 0.0):.6e} cm² | "
+            f"governa={_format_governing_reason(design_my.get('governing_reason'))} | "
             f"status={design_my.get('status')}"
         )
 
         lines.append(
             f"  Flexão Mz: "
             f"As_calc={design_mz.get('as_calculated_cm2', 0.0):.6e} cm² | "
+            f"As_min={design_mz.get('as_min_cm2', 0.0):.6e} cm² | "
+            f"As_max={design_mz.get('as_max_cm2', 0.0):.6e} cm² | "
             f"As_req={design_mz.get('as_required_cm2', 0.0):.6e} cm² | "
+            f"governa={_format_governing_reason(design_mz.get('governing_reason'))} | "
             f"status={design_mz.get('status')}"
         )
 
         lines.append(
             f"  Crítico: eixo {record.get('critical_axis')} | "
-            f"As={record.get('as_required_cm2', 0.0):.6e} cm²"
+            f"As_req={record.get('as_required_cm2', 0.0):.6e} cm² | "
+            f"governa={_format_governing_reason(record.get('governing_reason'))}"
         )
 
         warnings = record.get("warnings", [])
@@ -128,3 +142,16 @@ def format_beam_design_3d_report(design: dict[str, Any]) -> str:
     lines.append("")
 
     return "\n".join(lines)
+
+
+def _format_governing_reason(reason: str | None) -> str:
+    labels = {
+        "minimum_reinforcement": "armadura mínima preliminar",
+        "calculated_reinforcement": "armadura calculada",
+        "above_preliminary_maximum": "acima do máximo preliminar",
+        "invalid_geometry_or_material": "geometria ou material inválido",
+        "unknown": "indefinido",
+        None: "indefinido",
+    }
+
+    return labels.get(reason, str(reason))
